@@ -67,10 +67,46 @@ const testimonials = [
 ];
 
 const faqs = [
-  { q: "How do I cancel?", a: "You can cancel your membership anytime from your account dashboard without any hidden charges." },
-  { q: "What if I miss a class?", a: "Don't worry. You can reschedule your missed class based on your teacher's availability." },
-  { q: "I am a complete beginner. Is this right for me?", a: "Absolutely! Our classes are designed for complete beginners and experienced learners." },
-  { q: "Are the sessions recorded? Can I watch them later?", a: "Yes. Depending on your membership plan, recordings are available after the class." },
+  {
+    q: "Is my card charged during the free trial?",
+    a: "No. Your card is saved securely when you sign up, but nothing is charged during your trial period. If you cancel before it ends, you pay nothing. Not a single cent."
+  },
+  {
+    q: "How do I cancel?",
+    a: "You can cancel your membership anytime from your account dashboard without any hidden charges."
+  },
+  {
+    q: "What if I miss a class?",
+    a: "Don't worry. You can reschedule your missed class based on your teacher's availability."
+  },
+  {
+    q: "What timezone are the classes in?",
+    a: "All classes are scheduled according to the timezone shown when you book your class, so you can easily plan your sessions around your local time."
+  },
+  {
+    q: "I am a complete beginner. Is this right for me?",
+    a: "Absolutely! Our classes are designed for complete beginners and experienced learners."
+  },
+  {
+    q: "What equipment do I need?",
+    a: "You only need a yoga mat and a comfortable space to practice. No special equipment is required."
+  },
+  {
+    q: "Can someone join the class with me?",
+    a: "Yes! You can have someone join the class with you, depending on the membership plan and class guidelines."
+  },
+  {
+    q: "Are the classes recorded? Can I watch them later?",
+    a: "Yes. Depending on your membership plan, recordings are available after the class."
+  },
+  {
+    q: "How does the monthly progress report work?",
+    a: "Your monthly progress report helps you track your attendance, consistency, completed sessions, and overall progress throughout the month."
+  },
+  {
+    q: "Is there a long-term contract?",
+    a: "No. There is no long-term contract. You can cancel your membership anytime from your account dashboard."
+  }
 ];
 
 export default function Home() {
@@ -402,8 +438,78 @@ export default function Home() {
     setPlayingSlide(`${tab}-${index}`);
   }
 
+
+// CTA background image scroll animation
+useEffect(() => {
+  const cta = document.querySelector(".jovens-cta-section-main");
+
+  if (!cta) return;
+
+  let ticking = false;
+
+  const updateCTA = () => {
+    const rect = cta.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+
+    // Animate only while CTA is visible
+    if (rect.bottom > 0 && rect.top < viewportHeight) {
+      const progress =
+        (viewportHeight - rect.top) /
+        (viewportHeight + rect.height);
+
+      const clampedProgress = Math.max(
+        0,
+        Math.min(1, progress)
+      );
+
+      // LEFT → RIGHT
+      const moveX = -15 + clampedProgress * 30;
+
+      cta.style.setProperty(
+        "--cta-bg-x",
+        `${moveX}%`
+      );
+    }
+
+    ticking = false;
+  };
+
+  const handleScroll = () => {
+    if (!ticking) {
+      window.requestAnimationFrame(updateCTA);
+      ticking = true;
+    }
+  };
+
+  window.addEventListener("scroll", handleScroll, {
+    passive: true,
+  });
+
+  window.addEventListener("resize", updateCTA);
+
+  updateCTA();
+
+  return () => {
+    window.removeEventListener("scroll", handleScroll);
+    window.removeEventListener("resize", updateCTA);
+  };
+}, []); 
+
+  
+const floatStyle = `
+  @keyframes jovensFloatInline {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-18px); }
+  }
+  .jovens-float-img {
+    animation: jovensFloatInline 4s ease-in-out infinite !important;
+  }
+`;
   return (
     <>
+
+    <style>{floatStyle}</style>
+
       {/* Hero banner slider */}
       <section className="jovence-banner-slider-section">
         <div ref={heroSliderRef} className="owl-carousel owl-slider jbs-owl-slider">
@@ -811,7 +917,7 @@ export default function Home() {
           </div>
 
           <div className="main-is-re-main">
-            <img data-aos="zoom-in" className="main-is-re-main-absoute-img" src="/images/yoga-men.png" alt="Yoga" />
+            <img data-aos="zoom-in" className="main-is-re-main-absoute-img jovens-float-img" src="/images/yoga-men.png" alt="Yoga" />
 
             <div className="joven-is-section-background">
               <div data-aos="fade-right" className="joven-is-section-left">
@@ -833,7 +939,7 @@ export default function Home() {
 
           <div className="second-row-yoga">
             <div className="main-is-re-main">
-              <img data-aos="zoom-in" className="main-is-re-main-absoute-img-r" src="/images/yoga-girl.png" alt="Yoga" />
+              <img className="main-is-re-main-absoute-img-r jovens-float-img" src="/images/yoga-girl.png" alt="Yoga" />
 
               <div className="joven-is-section-background-r">
                 <div className="joven-is-section-right">
