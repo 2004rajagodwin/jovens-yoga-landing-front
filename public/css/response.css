@@ -1,0 +1,485 @@
+@media screen and (min-width:1800px){
+
+
+ .jbs-body{
+  max-width: 1480px;
+ }
+.jbs-text h1{
+  max-width: 650px;
+  font-size: 54px;
+}
+  .absol-top-right-button{
+    padding: 14px 55px;
+  }
+
+  .jovence-banner-slider-section .jbs-slide{
+    min-height: 820px;
+  }
+
+  .jovence-banner-slider-section .jbs-text p{
+    font-size: 18px;
+  }
+  .joven-trusted-heading p{
+    font-size: 18px;
+  }
+
+  .jbs-title{
+    margin-top: 50px;
+  }
+  .joven-testimon-card p{
+    font-size: 18px;
+  }
+
+  
+.wyg-section .wyg-card-desc{
+  font-size: 18px;
+}
+.wyg-section .wyg-card-title{
+  font-size: 24px;
+}
+.one-price-section .container{
+  min-width: 55%;
+}
+.jovens-cta-section .container{
+  min-width: 1320px !important;
+
+}
+.jbs-ring-1{
+  width: 570px;
+  height: 570px;
+}
+
+ .container{
+   
+    min-width:1480px ; 
+  }
+
+
+}
+
+
+
+
+
+
+
+@media (min-width: 1400px) and (max-width: 1499px) {
+.absol-top-right-button{
+      padding: 13px 33px !important;
+}
+}
+
+
+
+
+@media (min-width: 1200px) and (max-width: 1399px) {
+   .absol-top-right-button{
+      padding: 13px 28px !important;
+} 
+
+.main-is-re-main-absoute-img-r{
+  width: 34%;
+}
+
+.joven-is-section-right  img{
+  width: 99%;
+}
+
+.main-is-re-main-absoute-img{
+  width: 34%;
+}
+
+.one-price-section-left{
+  height: 820px;
+}
+}
+
+
+
+
+@media screen and (max-width:1199px) and (min-width:992px){
+
+.jovence-banner-slider-section .banner-badge-layer-image-div{
+  width: 100%;
+}
+.jovens-member-title {
+  font-size: 38px;
+}
+
+.joven-trusted-heading h2{
+  font-size: 38px;
+}
+.jovens-cta-content h2{
+  font-size: 45px;
+}
+.main-is-re-main-absoute-img{
+  bottom: 18%;
+}
+.main-is-re-main-absoute-img-r{
+  bottom: 30%;
+    width: 45%;
+}
+.joven-is-section-right{
+  width: auto;
+}
+.one-price-section-left{
+  height: 964px;
+}
+.jovens-overlay{
+  width: 100%;
+}
+.one-price-section .container{
+  width: 90%;
+}
+
+.joven-faq-heading h2{
+  font-size: 38px;
+}
+.jovens-indu-section .container{
+  width: 92%;
+}
+.jovens-main-title{
+  font-size: 38px;
+}
+    .how-it-img-title {
+    top: 22px;
+    left: 18px;
+
+    font-size: 24px;
+  }
+.joven-tab-slider-section .jts-title{
+  font-size: 38px;
+}
+  .jbs-title{
+    font-size: 38px;
+  }
+.how-it-title{
+  font-size: 38px;
+}
+.wyg-section .wyg-title{
+  font-size: 38px;
+
+}
+.joven-is-heading h2{
+  font-size: 38px;
+
+}
+.one-price-heading h2{
+  font-size: 38px;
+}
+
+
+}
+
+
+
+
+@media screen and (max-width:991px) and (min-width:768px){
+
+
+.jovence-banner-slider-section .banner-badge-layer-image-div{
+  width: 100%;
+}
+
+
+ .main-is-re-main-absoute-img-r {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    display: block;
+    margin: 40px auto 0;
+    width: 320px;
+  }
+.jovence-banner-slider-section .owl-carousel .owl-dots{
+  bottom: 19px;
+}
+
+.jovens-overlay{
+  width: 100%;
+}
+
+.absol-top-right-button-div {
+
+  right: -23px;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+}
+
+
+
+
+@media (max-width: 767px) {
+
+
+      .jovens-member-title {
+    font-size: 30px;
+  }
+
+
+.absol-top-right-button {
+  padding: 13px 24px;
+}
+    .jovens-indu-section {
+    padding: 0px 0px;
+    margin-top: 60px;
+    margin-bottom: 60px;
+  }
+.jovens-overlay{
+  width: auto;
+}
+
+  .jovens-cta-content h2 {
+    font-size: 30px;
+  }
+
+.absol-top-right-button-div{
+  right: 1%;
+}
+  .jovens-main-title {
+    font-size: 30px;
+  }
+ .one-price-heading h2 {
+    font-size: 30px;
+  }
+  .jovens-sub-title {
+    font-size: 14px;
+  }
+
+  .jovens-content h4 {
+    font-size: 16px;
+  }
+
+  .jovens-content p {
+    font-size: 14px;
+  }
+
+  .jovens-indu-img {
+    height: 360px;
+  }
+
+    .how-it-title {
+    font-size: 30px;
+  }
+
+   .how-it-jovens-section {
+    padding: 50px 0;
+  }
+
+.one-price-section .container{
+  width: 99%;
+}
+.one-price-offer{
+  font-size: 12px;
+}
+  .how-it-img-div {
+    height: 200px;
+  }
+
+  .how-it-img-title {
+    top: 25px;
+    left: 20px;
+
+    font-size: 23px;
+
+    max-width: 70%;
+  }
+
+  .how-it-content {
+    padding: 18px 20px 24px;
+  }
+
+ .joven-tab-slider-section .jts-title { font-size: 30px; }
+
+  .how-it-center-box {
+    padding: 28px 22px;
+    min-height: 220px;
+  }
+  .joven-tab-slider-section .jts-card-desc{
+    font-size: 20px;
+  }
+
+  .joven-tab-slider-section .jts-card-title { 
+    font-size: 26px;
+  }
+
+
+  .how-it-center-box h3 {
+    font-size: 24px;
+  }
+
+  .how-it-button-box {
+    min-height: 230px;
+  }
+
+  .how-it-btn {
+    padding: 14px 30px;
+  }
+
+  .try-for-border-absol {
+    width: 130px;
+  }
+
+    .jovens-breath-section {
+    padding: 70px 20px;
+  }
+
+  .jbs-circle-wrap {
+    width: 260px;
+    height: 260px;
+    margin-bottom: 26px;
+  }
+
+  .jbs-ring-1 {
+    width: 260px;
+    height: 260px;
+  }
+  .jbs-ring-2 {
+    width: 200px;
+    height: 200px;
+  }
+  .jbs-ring-3 {
+    width: 150px;
+    height: 150px;
+  }
+  .jbs-core {
+    width: 100px;
+    height: 100px;
+  }
+
+  .jbs-title {
+    font-size: 30px;
+  }
+  .jbs-subtitle {
+    font-size: 13px;
+  }
+
+  .jovens-breath-section .left-bottom-abso-img {
+    width: 140px;
+  }
+
+    .wyg-section {
+    padding-left: 20px;
+  }
+  .wyg-section .wyg-title {
+    font-size: 30px;
+  }
+
+  .joven-is-heading h2{
+    font-size: 30px;
+  }
+  .joven-faq-section {
+    padding: 60px 0;
+  }
+
+  .joven-faq-heading h2 {
+    font-size: 30px;
+  }
+
+  .joven-faq-question {
+    padding: 20px 0;
+  }
+
+  .joven-faq-question h3 {
+    font-size: 18px;
+    width: 90%;
+  }
+
+  .joven-faq-answer p {
+    font-size: 15px;
+  }
+
+  .pqq-sp{
+    font-size: 30px;
+  }
+
+  .joven-is-section-left h3{
+font-size: 26px !important;
+  }
+
+  .joven-is-section-left-r h3{
+    font-size: 26px;
+  }
+
+   .one-price-section {
+    padding: 46px 12px;
+  }
+
+  .one-price-heading {
+    margin-bottom: 25px;
+  }
+
+ 
+
+  .one-price-heading p {
+    padding: 0 15px;
+    font-size: 12px;
+  }
+
+  .one-price-section-left {
+    max-width: 420px;
+    height: 800px;
+
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .one-price-section-right {
+    max-width: 420px;
+    height: 585px;
+
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .one-price-card-header {
+    padding: 25px 22px 13px;
+  }
+
+  .one-price-features {
+    margin-left: 22px;
+    margin-right: 22px;
+  }
+
+  .one-price-bottom {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+
+  .one-price-amount h3 {
+    font-size: 44px;
+  }
+  .joven-testimon-heading h2 {
+    font-size: 30px;
+  }
+  .joven-testimon-heading h2 span{
+    font-size: 30px;
+  }
+ .main-is-re-main-absoute-img-r {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: 5px;
+    display: block;
+    margin: 40px auto 0;
+    width: 320px;
+  }
+  
+  .one-price-section::after{
+      top: -120px;
+    right: -126px;
+    width: 264px;
+    height: 264px;
+  }
+
+}
