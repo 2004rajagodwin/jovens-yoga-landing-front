@@ -5,7 +5,7 @@ import { TableSkeleton, EmptyState, ErrorState } from "../../components/admin/Pa
 import { showToast } from "../../components/admin/toast.js";
 import { listPlansAdmin, createPlan, updatePlan, setPlanActive, reorderPlans } from "../../services/adminApi.js";
 
-const PLAN_TYPES = ["FREE_TRIAL", "STANDARD", "PREMIUM"];
+const PLAN_TYPES = ["STANDARD", "PREMIUM"];
 const DURATION_UNITS = ["DAY", "MONTH", "YEAR"];
 
 const BLANK_PLAN = {
@@ -266,7 +266,7 @@ export default function AdminPlansPage() {
       <div className="jy-page-header">
         <div>
           <h1 className="jy-page-title">Plans</h1>
-          <p className="jy-page-subtitle">Free Trial, Standard &amp; Premium — durations and features</p>
+          <p className="jy-page-subtitle">Standard &amp; Premium — durations and features</p>
         </div>
         {!editingPlan && (
           <button type="button" className="jy-btn jy-btn-gradient"

@@ -65,7 +65,8 @@ export default function AdminPaymentsPage() {
               <table className="jy-table">
                 <thead>
                   <tr>
-                    <th>Order #</th>
+                    <th>Reference</th>
+                    <th>Source</th>
                     <th>Customer</th>
                     <th>Stripe Reference</th>
                     <th>Amount</th>
@@ -78,7 +79,12 @@ export default function AdminPaymentsPage() {
                   {data.content.map((payment) => (
                     <tr key={payment.id}>
                       <td className="jy-cell-muted" style={{ fontFamily: "monospace" }}>
-                        {payment.orderNumber}
+                        {payment.orderNumber || `Trial #${payment.trialId}`}
+                      </td>
+                      <td>
+                        <span className={`jy-badge ${payment.source === "TRIAL" ? "info" : "neutral"}`}>
+                          {payment.source}
+                        </span>
                       </td>
                       <td>{payment.customerName}</td>
                       <td className="jy-cell-muted" style={{ fontFamily: "monospace", fontSize: 11.5 }}>

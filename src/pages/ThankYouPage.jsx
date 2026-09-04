@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { getTrial } from "../services/trialApi.js";
+import { getTrialByToken } from "../services/trialApi.js";
 import { getOrder } from "../services/orderApi.js";
 
 /**
@@ -23,10 +23,11 @@ export default function ThankYouPage() {
     async function load() {
       try {
         if (type === "trial") {
-          const id = searchParams.get("id");
-          const data = await getTrial(id);
+          const token = searchParams.get("token");
+          const data = await getTrialByToken(token);
           if (cancelled) return;
-          if (data.status !== "TRIAL_ACTIVE") {
+          const converted = data.status === "TRIAL_EXPIRED" && data.paymentAmount != null;
+          if (data.status !== "TRIAL_ACTIVE" && !converted) {
             setStatus("not-found");
             return;
           }
@@ -74,13 +75,47 @@ export default function ThankYouPage() {
     );
   }
 
+  if (trial && trial.status === "TRIAL_EXPIRED" && trial.paymentAmount != null) {
+    return (
+      <div className="container py-5 text-center" style={{ maxWidth: 520, margin: "0 auto" }}>
+        <h1 className="mb-3" style={{ fontSize: 28 }}>
+          🎉 Congratulations, {trial.firstName}!
+        </h1>
+        <p className="text-muted mb-4">Your {trial.planName} Plan is now active.</p>
+
+        <div className="text-start" style={{ border: "1px solid #eee", borderRadius: 10, padding: 24 }}>
+          <p>
+            <strong>Plan:</strong> {trial.planName}
+          </p>
+          <p>
+            <strong>Trial Expired:</strong> {new Date(trial.trialExpiryDate).toLocaleString()}
+          </p>
+          <p>
+            <strong>Payment Date:</strong> {new Date(trial.paymentDate).toLocaleString()}
+          </p>
+          <p>
+            <strong>Amount:</strong> {trial.paymentCurrency} {trial.paymentAmount}
+          </p>
+          <p>
+            <strong>Subscription Reference:</strong> {trial.stripeSubscriptionId}
+          </p>
+          <p className="mb-0">
+            <strong>Status:</strong> ACTIVE / PAID
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (trial) {
     return (
       <div className="container py-5 text-center" style={{ maxWidth: 520, margin: "0 auto" }}>
         <h1 className="mb-3" style={{ fontSize: 28 }}>
-          Your Free Trial Is Active
+          🎉 Congratulations, {trial.firstName}!
         </h1>
-        <p className="text-muted mb-4">Welcome, {trial.firstName}! Your free trial has been activated.</p>
+        <p className="text-muted mb-4">
+          Your {trial.planName} 5-Day Free Trial is Active.
+        </p>
 
         <div className="text-start" style={{ border: "1px solid #eee", borderRadius: 10, padding: 24 }}>
           <p>
@@ -90,15 +125,32 @@ export default function ThankYouPage() {
             <strong>Registration ID:</strong> {trial.id}
           </p>
           <p>
-            <strong>Trial Start:</strong> {new Date(trial.trialStartDate).toLocaleDateString()}
+            <strong>Trial Start:</strong> {new Date(trial.trialStartDate).toLocaleString()}
           </p>
           <p>
-            <strong>Trial Expiry:</strong> {new Date(trial.trialExpiryDate).toLocaleDateString()}
+            <strong>Trial Expiry:</strong> {new Date(trial.trialExpiryDate).toLocaleString()}
           </p>
-          <p className="mb-0">
-            <strong>Status:</strong> {trial.status}
+          {trial.slotDate && (
+            <p>
+              <strong>Selected Slot:</strong> {trial.slotLabel ? `${trial.slotLabel} — ` : ""}
+              {new Date(trial.slotDate).toLocaleDateString()} {trial.slotStartTime ?? ""}
+            </p>
+          )}
+          <p>
+            <strong>Today:</strong> {trial.currency} 0
           </p>
+          {trial.durationLabel && (
+            <p className="mb-0">
+              <strong>After Trial ({trial.durationLabel}):</strong> {trial.currency} {trial.price}
+            </p>
+          )}
         </div>
+
+        <p className="fw-bold mt-4 mb-0">Status: FREE TRIAL ACTIVE</p>
+        <p className="text-muted mt-2">
+          Your 5-day free trial is now active. You won&rsquo;t be charged today. Your saved payment method will be
+          automatically charged according to your selected plan after the trial ends.
+        </p>
       </div>
     );
   }

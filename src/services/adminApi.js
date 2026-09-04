@@ -79,6 +79,26 @@ export function getTrialAdmin(id) {
   return authedRequest(`/api/admin/trials/${id}`);
 }
 
+// --- Slots ---
+export function listSlotsAdmin() {
+  return authedRequest("/api/admin/slots");
+}
+export function getSlotAdmin(id) {
+  return authedRequest(`/api/admin/slots/${id}`);
+}
+export function createSlot(payload) {
+  return authedRequest("/api/admin/slots", { method: "POST", body: payload });
+}
+export function updateSlot(id, payload) {
+  return authedRequest(`/api/admin/slots/${id}`, { method: "PUT", body: payload });
+}
+export function setSlotActive(id, active) {
+  return authedRequest(`/api/admin/slots/${id}/active`, { method: "PATCH", body: { active } });
+}
+export function deleteSlot(id) {
+  return authedRequest(`/api/admin/slots/${id}`, { method: "DELETE" });
+}
+
 // --- Notifications ---
 export function listNotifications({ status, channel, page = 0, size = 20 } = {}) {
   return authedRequest(`/api/admin/notifications${toQuery({ status, channel, page, size })}`);

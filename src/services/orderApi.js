@@ -1,9 +1,9 @@
 import { apiRequest } from "./apiClient.js";
 
-export function createOrder(planId, durationId, customer) {
+export function createOrder(planId, durationId, customer, otpToken) {
   return apiRequest("/api/orders", {
     method: "POST",
-    body: { planId, durationId, customer },
+    body: { planId, durationId, customer, otpToken },
   });
 }
 

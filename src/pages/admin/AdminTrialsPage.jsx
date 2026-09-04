@@ -5,7 +5,7 @@ import StatusBadge from "../../components/admin/StatusBadge.jsx";
 import { TableSkeleton, EmptyState, ErrorState } from "../../components/admin/PageStates.jsx";
 import { listTrials } from "../../services/adminApi.js";
 
-const STATUSES = ["", "TRIAL_ACTIVE", "TRIAL_EXPIRED"];
+const STATUSES = ["", "TRIAL_PENDING_PAYMENT", "TRIAL_ACTIVE", "TRIAL_EXPIRED", "PAYMENT_FAILED", "CANCELLED"];
 
 export default function AdminTrialsPage() {
   const [statusFilter, setStatusFilter] = useState("");
@@ -81,10 +81,13 @@ export default function AdminTrialsPage() {
                   <tr>
                     <th>Customer</th>
                     <th>Plan</th>
+                    <th>Slot</th>
                     <th>Start</th>
                     <th>Expiry</th>
                     <th>Status</th>
                     <th>Last Reminder Day</th>
+                    <th>Stripe Customer</th>
+                    <th>Stripe Subscription</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -94,13 +97,25 @@ export default function AdminTrialsPage() {
                         <div style={{ fontWeight: 600 }}>{trial.customerName}</div>
                         <div className="jy-cell-muted">{trial.email}</div>
                       </td>
-                      <td>{trial.planName}</td>
-                      <td className="jy-cell-muted">{new Date(trial.trialStartDate).toLocaleDateString()}</td>
-                      <td className="jy-cell-muted">{new Date(trial.trialExpiryDate).toLocaleDateString()}</td>
+                      <td>
+                        {trial.planName}
+                        {trial.planDurationLabel && <div className="jy-cell-muted">{trial.planDurationLabel}</div>}
+                      </td>
+                      <td className="jy-cell-muted">
+                        {trial.slotDate ? `${trial.slotLabel ? trial.slotLabel + " — " : ""}${new Date(trial.slotDate).toLocaleDateString()}` : "—"}
+                      </td>
+                      <td className="jy-cell-muted">{trial.trialStartDate ? new Date(trial.trialStartDate).toLocaleDateString() : "—"}</td>
+                      <td className="jy-cell-muted">{trial.trialExpiryDate ? new Date(trial.trialExpiryDate).toLocaleDateString() : "—"}</td>
                       <td>
                         <StatusBadge status={trial.status} />
                       </td>
                       <td className="jy-cell-muted">{trial.lastReminderDayIndex}</td>
+                      <td className="jy-cell-muted" style={{ fontFamily: "monospace", fontSize: 11.5 }}>
+                        {trial.stripeCustomerId || "—"}
+                      </td>
+                      <td className="jy-cell-muted" style={{ fontFamily: "monospace", fontSize: 11.5 }}>
+                        {trial.stripeSubscriptionId || "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

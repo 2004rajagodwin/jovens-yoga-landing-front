@@ -16,10 +16,15 @@ export default function ReviewPage() {
     try {
       // The order amount is authoritative server-side (looked up from the plan/duration
       // in the database) — the price shown here is for display only.
-      const order = await createOrder(state.planId, state.durationId, state.customer);
+      const order = await createOrder(state.planId, state.durationId, state.customer, state.otpToken);
       updateCheckoutState({ orderNumber: order.orderNumber });
 
       const checkout = await createCheckoutSession(order.orderNumber);
+      if (!checkout?.checkoutUrl) {
+        setErrorMessage("Could not start checkout. Please try again.");
+        setSubmitting(false);
+        return;
+      }
       window.location.href = checkout.checkoutUrl;
     } catch (err) {
       setErrorMessage(err.message || "Could not start checkout. Please try again.");

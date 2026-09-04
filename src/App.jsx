@@ -13,6 +13,7 @@ import AdminLoginPage from "./pages/admin/AdminLoginPage.jsx";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage.jsx";
 import AdminUsersPage from "./pages/admin/AdminUsersPage.jsx";
 import AdminPlansPage from "./pages/admin/AdminPlansPage.jsx";
+import AdminSlotsPage from "./pages/admin/AdminSlotsPage.jsx";
 import AdminOrdersPage from "./pages/admin/AdminOrdersPage.jsx";
 import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage.jsx";
 import AdminTrialsPage from "./pages/admin/AdminTrialsPage.jsx";
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/admin/dashboard" element={<ProtectedAdminRoute><AdminDashboardPage /></ProtectedAdminRoute>} />
         <Route path="/admin/users" element={<ProtectedAdminRoute><AdminUsersPage /></ProtectedAdminRoute>} />
         <Route path="/admin/plans" element={<ProtectedAdminRoute><AdminPlansPage /></ProtectedAdminRoute>} />
+        <Route path="/admin/slots" element={<ProtectedAdminRoute><AdminSlotsPage /></ProtectedAdminRoute>} />
         <Route path="/admin/orders" element={<ProtectedAdminRoute><AdminOrdersPage /></ProtectedAdminRoute>} />
         <Route path="/admin/payments" element={<ProtectedAdminRoute><AdminPaymentsPage /></ProtectedAdminRoute>} />
         <Route path="/admin/trials" element={<ProtectedAdminRoute><AdminTrialsPage /></ProtectedAdminRoute>} />

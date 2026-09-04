@@ -439,62 +439,6 @@ export default function Home() {
   }
 
 
-// CTA background image scroll animation
-useEffect(() => {
-  const cta = document.querySelector(".jovens-cta-section-main");
-
-  if (!cta) return;
-
-  let ticking = false;
-
-  const updateCTA = () => {
-    const rect = cta.getBoundingClientRect();
-    const viewportHeight = window.innerHeight;
-
-    // Animate only while CTA is visible
-    if (rect.bottom > 0 && rect.top < viewportHeight) {
-      const progress =
-        (viewportHeight - rect.top) /
-        (viewportHeight + rect.height);
-
-      const clampedProgress = Math.max(
-        0,
-        Math.min(1, progress)
-      );
-
-      // LEFT → RIGHT
-      const moveX = -15 + clampedProgress * 30;
-
-      cta.style.setProperty(
-        "--cta-bg-x",
-        `${moveX}%`
-      );
-    }
-
-    ticking = false;
-  };
-
-  const handleScroll = () => {
-    if (!ticking) {
-      window.requestAnimationFrame(updateCTA);
-      ticking = true;
-    }
-  };
-
-  window.addEventListener("scroll", handleScroll, {
-    passive: true,
-  });
-
-  window.addEventListener("resize", updateCTA);
-
-  updateCTA();
-
-  return () => {
-    window.removeEventListener("scroll", handleScroll);
-    window.removeEventListener("resize", updateCTA);
-  };
-}, []); 
-
   
 const floatStyle = `
   @keyframes jovensFloatInline {

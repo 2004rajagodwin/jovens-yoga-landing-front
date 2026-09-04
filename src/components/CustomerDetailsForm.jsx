@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { COUNTRIES } from "../lib/countries.js";
 
 const EMPTY = {
   firstName: "",
   lastName: "",
   email: "",
-  countryRegion: "",
-  countryPhoneCode: "+1",
+  countryRegion: "India",
+  countryPhoneCode: "+91",
   mobileNumber: "",
   address: "",
 };
@@ -16,6 +17,15 @@ export default function CustomerDetailsForm({ initialValues, submitLabel, onSubm
   function handleChange(e) {
     const { name, value } = e.target;
     setValues((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleCountryChange(e) {
+    const country = COUNTRIES.find((c) => c.name === e.target.value);
+    setValues((prev) => ({
+      ...prev,
+      countryRegion: e.target.value,
+      countryPhoneCode: country ? country.phoneCode : prev.countryPhoneCode,
+    }));
   }
 
   function handleSubmit(e) {
@@ -59,22 +69,35 @@ export default function CustomerDetailsForm({ initialValues, submitLabel, onSubm
         </div>
         <div className="col-md-4">
           <label className="form-label">Country/Region</label>
-          <input
-            className="form-control"
+          <select
+            className="form-select"
             name="countryRegion"
             value={values.countryRegion}
-            onChange={handleChange}
-          />
+            onChange={handleCountryChange}
+            required
+          >
+            {COUNTRIES.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="col-md-3">
           <label className="form-label">Phone Code</label>
-          <input
-            className="form-control"
+          <select
+            className="form-select"
             name="countryPhoneCode"
             value={values.countryPhoneCode}
             onChange={handleChange}
             required
-          />
+          >
+            {[...new Set(COUNTRIES.map((c) => c.phoneCode))].map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="col-md-9">
           <label className="form-label">Mobile / WhatsApp Number</label>

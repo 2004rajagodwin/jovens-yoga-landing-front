@@ -2276,30 +2276,50 @@ padding-top: 213px;
   z-index: 1;
 }
 
+
+
 .jovens-marquee-track {
-  display: inline-block;
+  display: block;
   white-space: nowrap;
 
-  font-size: 150px;
+  font-size: 200px;
   font-weight: 800;
-  letter-spacing: 5px;
+  letter-spacing: 6px;
   text-transform: uppercase;
 
-  color: #f6e8dd;
+  background-image: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0) 30%,
+      rgba(255, 255, 255, 0.9) 50%,
+      rgba(255, 255, 255, 0) 70%
+    ),
+    linear-gradient(
+      181.13deg,
+      #FFE7D3 4.8%,
+      rgba(255, 255, 255, 0) 151.75%
+    );
+  background-repeat: no-repeat, no-repeat;
+  background-size: 60% 100%, 100% 100%;
+  background-position: -60% 0, 0 0;
 
-  animation: jovensMove 30s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  animation: jovensShine 4.5s ease-in-out infinite;
 }
 
-@keyframes jovensMove {
+@keyframes jovensShine {
   0% {
-    transform: translateX(0);
+    background-position: -60% 0, 0 0;
   }
-
+  55% {
+    background-position: 160% 0, 0 0;
+  }
   100% {
-    transform: translateX(-50%);
+    background-position: 160% 0, 0 0;
   }
 }
-
 /*=============================
         CTA Box
 =============================*/
@@ -2315,28 +2335,11 @@ padding-top: 213px;
   z-index: 5;
   overflow: hidden;
 
-  background: transparent;
-}
-
-/* Moving background image */
-.jovens-cta-section-main::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -25%;
-
-  width: 150%;
-  height: 100%;
-
   background-image: url("../images/main-cta.png");
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
-
-  z-index: 0;
-
-  transform: translateX(var(--cta-bg-x, -15%));
-  transition: transform 0.05s linear;
+  background-attachment: fixed;
 }
 
 

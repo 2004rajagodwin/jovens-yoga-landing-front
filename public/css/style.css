@@ -2277,26 +2277,45 @@ padding-top: 213px;
 }
 
 .jovens-marquee-track {
-  display: inline-block;
+  display: block;
   white-space: nowrap;
 
-  font-size: 150px;
+  font-size: 160px;
   font-weight: 800;
-  letter-spacing: 5px;
+  letter-spacing: 6px;
   text-transform: uppercase;
 
-  color: #f6e8dd;
+  background-image: linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0) 30%,
+      rgba(255, 255, 255, 0.9) 50%,
+      rgba(255, 255, 255, 0) 70%
+    ),
+    linear-gradient(
+      181.13deg,
+      #FFE7D3 4.8%,
+      rgba(255, 255, 255, 0) 151.75%
+    );
+  background-repeat: no-repeat, no-repeat;
+  background-size: 60% 100%, 100% 100%;
+  background-position: -60% 0, 0 0;
 
-  animation: jovensMove 30s linear infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  animation: jovensShine 4.5s ease-in-out infinite;
 }
 
-@keyframes jovensMove {
+@keyframes jovensShine {
   0% {
-    transform: translateX(0);
+    background-position: -60% 0, 0 0;
   }
-
+  55% {
+    background-position: 160% 0, 0 0;
+  }
   100% {
-    transform: translateX(-50%);
+    background-position: 160% 0, 0 0;
   }
 }
 
@@ -2307,9 +2326,6 @@ padding-top: 213px;
 .jovens-cta-section-main {
   position: relative;
   overflow: hidden;
-  background-image: url(../images/main-cta.png);
-  background-repeat: no-repeat;
-  background-position: cover;
   border-radius: 18px;
 
   padding: 80px 0px;
@@ -2319,6 +2335,12 @@ padding-top: 213px;
   align-items: center;
 
   z-index: 5;
+
+  background-image: url(../images/main-cta.png);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
 }
 
 /* Background Image */
@@ -3188,9 +3210,6 @@ padding-top: 213px;
   position: relative;
   overflow: hidden;
 }
-.one-price-section .container{
-  width: 58% ;
-}
 .one-price-section::after {
   content: "";
   position: absolute;
@@ -3665,14 +3684,18 @@ padding-top: 213px;
 .one-price-section-right {
   position: relative;
   width: 100%;
-  height: 585px;
+  height: auto;
   border-radius: 13px;
+  display: flex;
+  flex-direction: column;
 }
 .one-price-section-left {
   position: relative;
   width: 100%;
-  height: 790px;
+  height: auto;
   border-radius: 13px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* =====================================================
@@ -3728,13 +3751,13 @@ padding-top: 213px;
         ===================================================== */
 
 .contend-absolute-main {
-  position: absolute;
-
-  top: 0;
-  left: 0;
+  position: relative;
 
   width: 100%;
-  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
 
   z-index: 5;
 }
@@ -3745,7 +3768,7 @@ padding-top: 213px;
 
 .one-price-card-header {
   position: relative;
-  padding: 27px 27px 13px;
+  padding: 24px 24px 10px;
   z-index: 3;
 }
 
@@ -3782,10 +3805,11 @@ padding-top: 213px;
 
 .one-price-amount h3 {
   margin: 0;
-  font-size: 68px;
-  line-height: 1;
+  font-size: 38px;
+  line-height: 1.1;
   font-weight: 700;
-  letter-spacing: -2px;
+  letter-spacing: -1px;
+  white-space: nowrap;
 }
 
 .one-price-amount span {
@@ -3805,8 +3829,8 @@ padding-top: 213px;
 .one-price-offer {
   display: inline-block;
 
-  margin-top: 16px;
-padding: 12px 19px;
+  margin-top: 12px;
+padding: 10px 16px;
 
   background: #FFF5EE;
   
@@ -3829,10 +3853,8 @@ padding: 12px 19px;
 .one-price-features {
   position: relative;
 
-
-
-  margin: 14px 27px;
-  padding: 30px 0 12px;
+  margin: 8px 24px;
+  padding: 20px 0 10px;
 
   border-top: 1px solid #8593A329;
 
@@ -3847,9 +3869,9 @@ padding: 12px 19px;
   display: flex;
   align-items: flex-start;
 
-  gap: 16px;
+  gap: 14px;
 
-  margin-bottom: 17px;
+  margin-bottom: 13px;
 }
 
 .one-price-feature:last-child {
@@ -3901,14 +3923,12 @@ padding: 12px 19px;
         ===================================================== */
 
 .one-price-bottom {
-  position: absolute;
-
-  left: 0;
-  bottom: 0;
+  position: relative;
 
   width: 100%;
+  margin-top: auto;
 
-  padding: 20px 27px;
+  padding: 18px 24px;
 
   border-top: 1px solid #eeeeee;
 
@@ -4078,7 +4098,7 @@ padding: 12px 19px;
   }
 
   .one-price-section-right {
-    height: 570px;
+    height: auto;
   }
 }
 

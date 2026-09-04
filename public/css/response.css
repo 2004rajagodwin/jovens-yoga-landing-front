@@ -90,7 +90,7 @@
 }
 
 .one-price-section-left{
-  height: 820px;
+  height: auto;
 }
 }
 
@@ -123,7 +123,7 @@
   width: auto;
 }
 .one-price-section-left{
-  height: 964px;
+  height: auto;
 }
 .jovens-overlay{
   width: 100%;
@@ -429,35 +429,35 @@ font-size: 26px !important;
 
   .one-price-section-left {
     max-width: 420px;
-    height: 800px;
+    height: auto;
 
     margin-left: auto;
     margin-right: auto;
   }
   .one-price-section-right {
     max-width: 420px;
-    height: 585px;
+    height: auto;
 
     margin-left: auto;
     margin-right: auto;
   }
 
   .one-price-card-header {
-    padding: 25px 22px 13px;
+    padding: 22px 20px 10px;
   }
 
   .one-price-features {
-    margin-left: 22px;
-    margin-right: 22px;
+    margin-left: 20px;
+    margin-right: 20px;
   }
 
   .one-price-bottom {
-    padding-left: 22px;
-    padding-right: 22px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
 
   .one-price-amount h3 {
-    font-size: 44px;
+    font-size: 32px;
   }
   .joven-testimon-heading h2 {
     font-size: 30px;

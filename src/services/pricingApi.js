@@ -2,7 +2,8 @@
 // Response contract: ApiResponse<PlanResponse[]> — see
 // com.jovens.yoga.dto.response.{ApiResponse,PlanResponse,PlanDurationResponse,PlanFeatureResponse}.
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+import { apiRequest } from "./apiClient.js";
+
 const ACTIVE_PLANS_ENDPOINT = "/api/plans/active";
 
 function pickPrimaryDuration(durations) {
@@ -15,14 +16,14 @@ function billingPeriodLabel(duration) {
   return duration.durationLabel ?? `Per ${duration.durationUnit?.toLowerCase() ?? ""}`;
 }
 
-function defaultButtonText(planType) {
-  return planType === "FREE_TRIAL" ? "Try Free For 5 Days" : "Choose Plan";
+function defaultButtonText() {
+  return "Try Free For 5 Days";
 }
 
+// Every active plan is Standard or Premium now — both start with a 5-day free trial,
+// so the CTA always routes through the duration picker with flow=trial.
 function buttonUrlFor(raw) {
-  return raw.planType === "FREE_TRIAL"
-    ? `/trial/details?planId=${raw.id}`
-    : `/checkout/duration?planId=${raw.id}`;
+  return `/checkout/duration?planId=${raw.id}&flow=trial`;
 }
 
 function mapPlan(raw) {
@@ -38,7 +39,7 @@ function mapPlan(raw) {
     features: Array.isArray(raw.features)
       ? raw.features.filter((f) => f.active).map((f) => f.featureText)
       : [],
-    buttonText: defaultButtonText(raw.planType),
+    buttonText: defaultButtonText(),
     buttonUrl: buttonUrlFor(raw),
     badge: raw.badgeText ?? null,
     planType: raw.planType ?? null,
@@ -49,21 +50,8 @@ function mapPlan(raw) {
 }
 
 export async function fetchActivePlans() {
-  const response = await fetch(`${API_BASE_URL}${ACTIVE_PLANS_ENDPOINT}`, {
-    headers: { Accept: "application/json" },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to load pricing plans (status ${response.status})`);
-  }
-
-  const body = await response.json();
-
-  if (body.success === false) {
-    throw new Error(body.message || "Failed to load pricing plans");
-  }
-
-  const list = Array.isArray(body.data) ? body.data : [];
+  const data = await apiRequest(ACTIVE_PLANS_ENDPOINT);
+  const list = Array.isArray(data) ? data : [];
 
   return list
     .map(mapPlan)

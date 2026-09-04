@@ -6,6 +6,7 @@ import { updateCheckoutState } from "../../services/checkoutState.js";
 export default function DurationPage() {
   const [searchParams] = useSearchParams();
   const planId = Number(searchParams.get("planId"));
+  const flow = searchParams.get("flow") === "trial" ? "trial" : "paid";
   const navigate = useNavigate();
 
   const [plan, setPlan] = useState(null);
@@ -25,6 +26,10 @@ export default function DurationPage() {
   }, [planId]);
 
   function selectDuration(duration) {
+    if (flow === "trial") {
+      navigate(`/trial/details?planId=${plan.id}&durationId=${duration.id}`);
+      return;
+    }
     updateCheckoutState({
       planId: plan.id,
       planName: plan.name,
@@ -56,7 +61,10 @@ export default function DurationPage() {
       <h1 className="mb-2" style={{ fontSize: 28 }}>
         Choose a Duration for {plan.name}
       </h1>
-      <p className="text-muted mb-4">{plan.description}</p>
+      <p className="text-muted mb-4">
+        {plan.description}
+        {flow === "trial" && " Your 5-day free trial will start today; this is the plan you'll be billed after it ends."}
+      </p>
 
       <div className="d-flex flex-column gap-3">
         {activeDurations.map((duration) => (
