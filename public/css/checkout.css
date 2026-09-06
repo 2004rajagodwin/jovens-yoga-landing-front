@@ -1,0 +1,167 @@
+/*=========================================
+    CHECKOUT / TRIAL FLOW LAYOUT
+    (Separate from the main site header/footer —
+    used only on the Choose Duration, Start Your
+    Free Trial, and other checkout/trial pages.)
+=========================================*/
+
+.checkout-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: #fff;
+}
+
+.checkout-page-main {
+  flex: 1 0 auto;
+  padding:70px 0px;
+}
+
+/* Header */
+
+.checkout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 80px;
+  border-bottom: 1px solid #f0e4d8;
+background-color :#AAAEAA; 
+}
+
+.checkout-header-logo {
+  display: flex;
+  align-items: center;
+}
+
+.checkout-header-logo img {
+  /* height: 34px;
+  width: auto; */
+}
+
+.checkout-header-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 45px;
+  border-radius: 999px;
+  border: 1px solid #ff6b1b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  background: #ff6b1b;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.checkout-header-home-btn:hover {
+  background: #fff;
+    border: 1px solid #ff6b1b;
+  color: #ff6b1b;
+}
+
+/* Footer */
+
+.checkout-footer {
+  border-top: 1px solid #f0e4d8;
+  background: #fdfaf7;
+  padding: 24px 32px;
+}
+
+.checkout-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.checkout-footer-copy {
+  color: #8a8380;
+  font-size: 13px;
+  margin: 0;
+}
+
+.checkout-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checkout-footer-links a {
+  color: #6b6560;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.checkout-footer-links a:hover {
+  color: #ff6b1b;
+}
+
+/* Choose a Duration page */
+
+.duration-option-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #eee;
+  padding: 16px 20px;
+  border-radius: 10px;
+  background: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.duration-option-card:hover {
+  border-color: #ff6b1b;
+  box-shadow: 0 2px 10px rgba(255, 107, 27, 0.12);
+}
+
+/* Back link on the Start Your Free Trial page */
+
+.checkout-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 24px;
+  color: #6b6560;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.checkout-back-link:hover {
+  color: #ff6b1b;
+}
+
+@media (max-width: 767px) {
+  .checkout-header {
+    padding: 14px 18px;
+  }
+
+  .checkout-header-logo img {
+    height: 26px;
+  }
+
+  .checkout-header-home-btn {
+    padding: 7px 16px;
+    font-size: 13px;
+  }
+
+  .checkout-footer {
+    padding: 20px 18px;
+  }
+
+  .checkout-footer-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { getPlan } from "../../services/planApi.js";
 import { updateCheckoutState } from "../../services/checkoutState.js";
+import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 
 export default function DurationPage() {
   const [searchParams] = useSearchParams();
@@ -42,47 +43,54 @@ export default function DurationPage() {
   }
 
   if (status === "loading") {
-    return <div className="container py-5 text-center">Loading plan options…</div>;
+    return (
+      <CheckoutLayout>
+        <div className="container py-5 text-center">Loading plan options…</div>
+      </CheckoutLayout>
+    );
   }
 
   if (status === "error" || !plan) {
     return (
-      <div className="container py-5 text-center">
-        <p>We couldn't load this plan. Please go back and try again.</p>
-        <Link to="/">Back to Home</Link>
-      </div>
+      <CheckoutLayout>
+        <div className="container py-5 text-center">
+          <p>We couldn't load this plan. Please go back and try again.</p>
+          <Link to="/">Back to Home</Link>
+        </div>
+      </CheckoutLayout>
     );
   }
 
   const activeDurations = (plan.durations || []).filter((d) => d.active);
 
   return (
-    <div className="container py-5" style={{ maxWidth: 640 }}>
-      <h1 className="mb-2" style={{ fontSize: 28 }}>
-        Choose a Duration for {plan.name}
-      </h1>
-      <p className="text-muted mb-4">
-        {plan.description}
-        {flow === "trial" && " Your 5-day free trial will start today; this is the plan you'll be billed after it ends."}
-      </p>
+    <CheckoutLayout>
+      <div className="container py-5 mt-5" style={{ maxWidth: 640 }}>
+        <h1 className="mb-2 tamionere" style={{ fontSize: 28, fontWeight: 700 }}>
+          Choose a Duration for {plan.name}
+        </h1>
+        <p className="text-muted mb-4">
+          {plan.description}
+          {flow === "trial" && " Your 5-day free trial will start today; this is the plan you'll be billed after it ends."}
+        </p>
 
-      <div className="d-flex flex-column gap-3">
-        {activeDurations.map((duration) => (
-          <button
-            key={duration.id}
-            type="button"
-            className="btn text-start d-flex justify-content-between align-items-center"
-            style={{ border: "1px solid #eee", padding: "16px 20px", borderRadius: 10 }}
-            onClick={() => selectDuration(duration)}
-          >
-            <span>{duration.durationLabel}</span>
-            <strong>
-              {duration.currency} {duration.price}
-            </strong>
-          </button>
-        ))}
-        {activeDurations.length === 0 && <p>No duration options are currently available for this plan.</p>}
+        <div className="d-flex flex-column gap-3">
+          {activeDurations.map((duration) => (
+            <button
+              key={duration.id}
+              type="button"
+              className="duration-option-card"
+              onClick={() => selectDuration(duration)}
+            >
+              <span>{duration.durationLabel}</span>
+              <strong>
+                {duration.currency} {duration.price}
+              </strong>
+            </button>
+          ))}
+          {activeDurations.length === 0 && <p>No duration options are currently available for this plan.</p>}
+        </div>
       </div>
-    </div>
+    </CheckoutLayout>
   );
 }

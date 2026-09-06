@@ -8,6 +8,7 @@ import { getPlan } from "../../services/planApi.js";
 import { ApiError } from "../../services/apiClient.js";
 import { updateCheckoutState } from "../../services/checkoutState.js";
 import { COUNTRIES } from "../../lib/countries.js";
+import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 
 const PHONE_CODES = [...new Set(COUNTRIES.map((c) => c.phoneCode))];
 const EMPTY_CUSTOMER = {
@@ -175,15 +176,18 @@ export default function TrialDetailsPage() {
 
   if (!planId || !durationId) {
     return (
-      <div className="container py-5 text-center">
-        <p>Missing plan or duration selection. Please start from the pricing section.</p>
-        <Link to="/">Back to Home</Link>
-      </div>
+      <CheckoutLayout>
+        <div className="container py-5 text-center">
+          <p>Missing plan or duration selection. Please start from the pricing section.</p>
+          <Link to="/">Back to Home</Link>
+        </div>
+      </CheckoutLayout>
     );
   }
 
   if (blockedMessage && blockedStatus === "TRIAL_ACTIVE") {
     return (
+      <CheckoutLayout>
       <div className="container py-5" style={{ maxWidth: 640 }}>
         <div className="alert alert-warning">
           <h2 className="mb-2" style={{ fontSize: 20 }}>
@@ -232,11 +236,13 @@ export default function TrialDetailsPage() {
           )}
         </div>
       </div>
+      </CheckoutLayout>
     );
   }
 
   if (blockedMessage && blockedStatus === "ACTIVE") {
     return (
+      <CheckoutLayout>
       <div className="container py-5" style={{ maxWidth: 640 }}>
         <div className="alert alert-success">
           <h2 className="mb-2" style={{ fontSize: 20 }}>
@@ -247,11 +253,13 @@ export default function TrialDetailsPage() {
           </p>
         </div>
       </div>
+      </CheckoutLayout>
     );
   }
 
   if (blockedMessage) {
     return (
+      <CheckoutLayout>
       <div className="container py-5" style={{ maxWidth: 640 }}>
         <div className="alert alert-warning">
           <h2 className="mb-2" style={{ fontSize: 20 }}>
@@ -268,6 +276,7 @@ export default function TrialDetailsPage() {
           </button>
         </div>
       </div>
+      </CheckoutLayout>
     );
   }
 
@@ -279,6 +288,7 @@ export default function TrialDetailsPage() {
   const trialDays = plan?.trialDurationDays || 5;
 
   return (
+    <CheckoutLayout>
     <div className="container py-5">
       <div className="row g-4 g-md-5">
         {/* LEFT: User details form */}
@@ -418,136 +428,310 @@ export default function TrialDetailsPage() {
             )}
 
           </form>
+
+          <button type="button" className="checkout-back-link" onClick={() => navigate(-1)}>
+            <i className="bi bi-arrow-left"></i> Back
+          </button>
         </div>
 
         {/* RIGHT: Plan summary card */}
         <div className="col-md-6">
-          <div
-            style={{
-              border: "1px solid #f0d9c8",
-              background: "#fff8f2",
-              borderRadius: 18,
-              padding: 28,
-            }}
-          >
-            <div className="d-flex justify-content-between align-items-start mb-1">
-              <div>
-                <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Your Yoga Plan</h2>
-                <p className="text-muted mb-0" style={{ fontSize: 13 }}>
-                  Simple. Peaceful. Just for you.
-                </p>
-              </div>
-              <span
+  <div
+    style={{
+      border: "1px solid #f0d9c8",
+      background: "#fff8f2",
+      borderRadius: 18,
+      padding: 30,
+      margin: "0px 20px",
+    }}
+  >
+    <div className="d-flex justify-content-between align-items-start mb-2">
+      <div>
+        <h2
+          style={{
+            fontSize: 22,
+            fontWeight: 700,
+           
+            lineHeight: 1.3,
+          }}
+        >
+          Your Yoga Plan
+        </h2>
+
+        <p
+          className="text-muted mb-0"
+          style={{
+            fontSize: 15,
+            lineHeight: 1.5,
+          }}
+        >
+          Simple. Peaceful. Just for you.
+        </p>
+      </div>
+
+      <span
+        style={{
+          background: "#ff6b1b",
+          color: "#fff",
+          borderRadius: 999,
+          padding: "6px 15px",
+          fontSize: 14,
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {plan?.name || (planStatus === "loading" ? "…" : "Plan")}
+      </span>
+    </div>
+
+    <hr
+      style={{
+        borderColor: "#f0d9c8",
+        margin: "18px 0",
+      }}
+    />
+
+    {planStatus === "error" && (
+      <p
+        className="text-danger"
+        style={{
+          fontSize: 15,
+          marginBottom: 15,
+        }}
+      >
+        Could not load plan details.
+      </p>
+    )}
+
+    {plan && (
+      <>
+        <div className="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <h3
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                margin: "0 0 6px",
+                lineHeight: 1.4,
+              }}
+            >
+              {plan.name} Plan
+            </h3>
+
+            <p
+              className="text-muted mb-3"
+              style={{
+                fontSize: 15,
+                lineHeight: 1.6,
+                maxWidth: 300,
+              }}
+            >
+              {plan.description}
+            </p>
+
+            {selectedSlot && (
+              <p
+                className="mb-0"
                 style={{
-                  background: "#ff6b1b",
-                  color: "#fff",
-                  borderRadius: 999,
-                  padding: "5px 14px",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
+                  fontSize: 15,
+                  lineHeight: 1.5,
                 }}
               >
-                {plan?.name || (planStatus === "loading" ? "…" : "Plan")}
-              </span>
-            </div>
-
-            <hr style={{ borderColor: "#f0d9c8", margin: "16px 0" }} />
-
-            {planStatus === "error" && <p className="text-danger">Could not load plan details.</p>}
-            {plan && (
-              <>
-                <div className="d-flex justify-content-between align-items-start">
-                  <div>
-                    <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>{plan.name} Plan</h3>
-                    <p className="text-muted mb-2" style={{ fontSize: 13.5, maxWidth: 260 }}>
-                      {plan.description}
-                    </p>
-                    {selectedSlot && (
-                      <p className="mb-0" style={{ fontSize: 13.5 }}>
-                        <i className="bi bi-clock" style={{ color: "#ff6b1b", marginRight: 6 }}></i>
-                        {formatSlot(selectedSlot)}
-                      </p>
-                    )}
-                  </div>
-                  {selectedDuration && (
-                    <div style={{ fontSize: 24, fontWeight: 700, whiteSpace: "nowrap" }}>
-                      {formatPrice(selectedDuration.currency, selectedDuration.price)}
-                    </div>
-                  )}
-                </div>
-
-                <div
+                <i
+                  className="bi bi-clock"
                   style={{
-                    borderTop: "1px dashed #e3c6ab",
-                    margin: "18px 0",
+                    color: "#ff6b1b",
+                    marginRight: 7,
                   }}
-                />
+                ></i>
 
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <div>
-                    <div style={{ color: "#3a7d33", fontWeight: 700, fontSize: 14.5 }}>{trialDays}-Day Free Trial</div>
-                    <div className="text-muted" style={{ fontSize: 12.5 }}>
-                      Enjoy your first {trialDays} days at no cost.
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      background: "#e6f4e1",
-                      color: "#3a7d33",
-                      borderRadius: 999,
-                      padding: "4px 12px",
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                    }}
-                  >
-                    Free
-                  </span>
-                </div>
-
-                <div className="row g-3 mb-4">
-                  <div className="col-6">
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>
-                      <i className="bi bi-check-circle-fill" style={{ color: "#ff6b1b", marginRight: 6 }}></i>
-                      After your free trial
-                    </div>
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      Your membership will auto-renew{selectedDuration ? ` at ${formatPrice(selectedDuration.currency, selectedDuration.price)}/${formatCadence(selectedDuration.durationLabel)}` : ""}.
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>
-                      <i className="bi bi-check-circle-fill" style={{ color: "#ff6b1b", marginRight: 6 }}></i>
-                      Secure checkout
-                    </div>
-                    <div className="text-muted" style={{ fontSize: 12 }}>
-                      Your payment information is encrypted and always safe.
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* type="submit" + form="…" ties this button (visually in the plan card, matching the
-                reference layout) back to the actual <form> on the left, so native required-field
-                validation still runs exactly as it would for an in-form submit button. */}
-            <button
-              type="submit"
-              form="trial-details-form"
-              className="btn w-100"
-              style={{ background: "#ff6b1b", color: "#fff", padding: "12px 0", fontWeight: 600, fontSize: 15 }}
-              disabled={submitting || planStatus === "loading"}
-            >
-              {submitting ? "Please wait…" : "Continue to checkout"}
-            </button>
-            {selectedDuration && (
-              <p className="text-center text-muted mt-2 mb-0" style={{ fontSize: 12 }}>
-                {trialDays} days free · Then {formatPrice(selectedDuration.currency, selectedDuration.price)}/{formatCadence(selectedDuration.durationLabel)}
-                <span style={{ color: "#ff6b1b" }}> · Cancel anytime</span>
+                {formatSlot(selectedSlot)}
               </p>
             )}
           </div>
+
+          {selectedDuration && (
+            <div
+              style={{
+                fontSize: 26,
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+                lineHeight: 1.3,
+              }}
+            >
+              {formatPrice(
+                selectedDuration.currency,
+                selectedDuration.price
+              )}
+            </div>
+          )}
         </div>
+
+        <div
+          style={{
+            borderTop: "1px dashed #e3c6ab",
+            margin: "20px 0",
+          }}
+        />
+
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <div
+              style={{
+                color: "#3a7d33",
+                fontWeight: 700,
+                fontSize: 16,
+                lineHeight: 1.4,
+              }}
+            >
+              {trialDays}-Day Free Trial
+            </div>
+
+            <div
+              className="text-muted"
+              style={{
+                fontSize: 14,
+                lineHeight: 1.5,
+                marginTop: 3,
+              }}
+            >
+              Enjoy your first {trialDays} days at no cost.
+            </div>
+          </div>
+
+          <span
+            style={{
+              background: "#e6f4e1",
+              color: "#3a7d33",
+              borderRadius: 999,
+              padding: "5px 14px",
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            Free
+          </span>
+        </div>
+
+        <div className="row g-4 mb-4">
+          <div className="col-6">
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                lineHeight: 1.5,
+              }}
+            >
+              <i
+                className="bi bi-check-circle-fill"
+                style={{
+                  color: "#ff6b1b",
+                  marginRight: 7,
+                }}
+              ></i>
+
+              After your free trial
+            </div>
+
+            <div
+              className="text-muted"
+              style={{
+                fontSize: 14,
+                lineHeight: 1.6,
+                marginTop: 4,
+              }}
+            >
+              Your membership will auto-renew
+              {selectedDuration
+                ? ` at ${formatPrice(
+                    selectedDuration.currency,
+                    selectedDuration.price
+                  )}/${formatCadence(
+                    selectedDuration.durationLabel
+                  )}`
+                : ""}
+              .
+            </div>
+          </div>
+
+          <div className="col-6">
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                lineHeight: 1.5,
+              }}
+            >
+              <i
+                className="bi bi-check-circle-fill"
+                style={{
+                  color: "#ff6b1b",
+                  marginRight: 7,
+                }}
+              ></i>
+
+              Secure checkout
+            </div>
+
+            <div
+              className="text-muted"
+              style={{
+                fontSize: 14,
+                lineHeight: 1.6,
+                marginTop: 4,
+              }}
+            >
+              Your payment information is encrypted and
+              always safe.
+            </div>
+          </div>
+        </div>
+      </>
+    )}
+
+    <button
+      type="submit"
+      form="trial-details-form"
+      className="btn w-100"
+      style={{
+        background: "#ff6b1b",
+        color: "#fff",
+        padding: "14px 0",
+        fontWeight: 600,
+        fontSize: 16,
+        borderRadius: 8,
+        border: "none",
+      }}
+      disabled={submitting || planStatus === "loading"}
+    >
+      {submitting ? "Please wait…" : "Continue to checkout"}
+    </button>
+
+    {selectedDuration && (
+      <p
+        className="text-center text-muted mt-3 mb-0"
+        style={{
+          fontSize: 14,
+          lineHeight: 1.5,
+        }}
+      >
+        {trialDays} days free · Then{" "}
+        {formatPrice(
+          selectedDuration.currency,
+          selectedDuration.price
+        )}
+        /{formatCadence(selectedDuration.durationLabel)}
+
+        <span style={{ color: "#ff6b1b" }}>
+          {" "}
+          · Cancel anytime
+        </span>
+      </p>
+    )}
+  </div>
+</div>
+
+
       </div>
 
       {pendingCustomer && (
@@ -561,5 +745,6 @@ export default function TrialDetailsPage() {
         />
       )}
     </div>
+    </CheckoutLayout>
   );
 }
