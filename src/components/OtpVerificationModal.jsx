@@ -14,27 +14,41 @@ export default function OtpVerificationModal({ firstName, email, countryPhoneCod
   const [devOtp, setDevOtp] = useState(null);
   const [cooldown, setCooldown] = useState(0);
   const inputRefs = useRef([]);
+  // Guards against React StrictMode's intentional mount→cleanup→mount replay in development
+  // (and any other double-fire of this effect). Without this, two concurrent
+  // POST /api/auth/otp/send requests race to write otps.otp_hash for the same phone number —
+  // the code actually persisted in the database and the code the (harmless-looking) response
+  // guard below chooses to display are decided independently, so the displayed code can
+  // silently mismatch what the backend will accept. A ref (not state) is required here: it
+  // must survive the synchronous cleanup/remount pass StrictMode performs, which happens
+  // before any state update from this effect could take effect.
+  const otpSendStartedRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
+    // StrictMode's synchronous mount→cleanup→mount replay would otherwise run this whole
+    // block twice back-to-back on first mount. The ref check below stops a second real send
+    // outright; deliberately no "cancelled"-on-cleanup guard around the request itself — that
+    // pattern ties the fetch's resolution to the specific effect invocation that started it,
+    // and StrictMode's synthetic cleanup fires for invocation 1 before its fetch ever
+    // resolves, which would permanently discard the one real response and leave the modal
+    // stuck on "Sending OTP…". The ref already guarantees only one send is ever in flight, so
+    // its result is safe to apply whenever it arrives.
+    if (otpSendStartedRef.current) return;
+    otpSendStartedRef.current = true;
+
     setSending(true);
     setErrorMessage("");
     sendOtp({ firstName, email, countryPhoneCode, mobileNumber })
       .then((response) => {
-        if (cancelled) return;
         setDevOtp(response?.devOtp || null);
         setCooldown(RESEND_COOLDOWN_SECONDS);
       })
       .catch((err) => {
-        if (cancelled) return;
         setErrorMessage(err.message || "Could not send OTP. Please try again.");
       })
       .finally(() => {
-        if (!cancelled) setSending(false);
+        setSending(false);
       });
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

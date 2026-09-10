@@ -2336,7 +2336,7 @@ padding-top: 213px;
 
   z-index: 5;
 
-  background-image: url(../images/main-cta.png);
+  background-image: url(/images/main-cta.png);
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
@@ -3532,6 +3532,11 @@ padding-top: 213px;
 }
 
 /* Hover zoom animation */
+.wyg-section .wyg-card-media {
+  position: relative;
+  overflow: hidden;
+}
+
 .wyg-section .wyg-card-media img {
   width: 100%;
   height: 100%;
@@ -3539,9 +3544,26 @@ padding-top: 213px;
   display: block;
   pointer-events: none;
   -webkit-user-drag: none;
+  filter: grayscale(0%);
   transform: scale(1);
-  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: filter 0.6s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
+}
+
+.wyg-section .wyg-card-media::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle 120px at var(--x, 50%) var(--y, 50%),
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0) 70%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: overlay;
 }
 
 .wyg-section .wyg-card-media::after {
@@ -3552,10 +3574,16 @@ padding-top: 213px;
   opacity: 0;
   transition: opacity 0.5s ease;
   pointer-events: none;
+  z-index: 2;
 }
 
 .wyg-section .wyg-card:hover .wyg-card-media img {
+  filter: grayscale(100%);
   transform: scale(1.08);
+}
+
+.wyg-section .wyg-card:hover .wyg-card-media::before {
+  opacity: 1;
 }
 
 .wyg-section .wyg-card:hover .wyg-card-media::after {

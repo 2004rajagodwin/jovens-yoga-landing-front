@@ -10,7 +10,7 @@ import { updateCheckoutState } from "../../services/checkoutState.js";
 import { COUNTRIES } from "../../lib/countries.js";
 import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 
-const PHONE_CODES = [...new Set(COUNTRIES.map((c) => c.phoneCode))];
+
 const EMPTY_CUSTOMER = {
   firstName: "",
   lastName: "",
@@ -293,131 +293,154 @@ export default function TrialDetailsPage() {
       <div className="row g-4 g-md-5">
         {/* LEFT: User details form */}
         <div className="col-md-6">
-          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", color: "#ff6b1b", marginBottom: 8 }}>
-            FREE 5-DAY TRIAL
-          </div>
+    <div className="newtkfsl" style={{width:'95%'}} >
+      <div className="trial-eyebrow">FREE 5-DAY TRIAL</div>
           <h1 className="mb-2" style={{ fontSize: 30, fontWeight: 700 }}>
             Start your <span style={{ color: "#ff6b1b" }}>free trial</span>
           </h1>
-          <p className="text-muted mb-4">Fill in your details and pick your slot below.</p>
+          <p className="text-muted mb-4">
+            Fill in your details and pick your slot below. Begin your wellness journey today!
+          </p>
 
           <form id="trial-details-form" onSubmit={handleSubmit}>
             <div className="row g-3">
               <div className="col-md-6">
-                <label className="form-label">First name</label>
-                <input
-                  className="form-control"
-                  name="firstName"
-                  placeholder="First name"
-                  value={customer.firstName}
-                  onChange={handleCustomerFieldChange}
-                  required
-                />
+                {/* <label className="form-label">First name</label> */}
+                <div className="trial-input-wrap">
+                  <i className="bi bi-person trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    className="form-control trial-input"
+                    name="firstName"
+                    placeholder="First name"
+                    value={customer.firstName}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
+                </div>
               </div>
               <div className="col-md-6">
-                <label className="form-label">Last name</label>
-                <input
-                  className="form-control"
-                  name="lastName"
-                  placeholder="Last name"
-                  value={customer.lastName}
-                  onChange={handleCustomerFieldChange}
-                  required
-                />
+                {/* <label className="form-label">Last name</label> */}
+                <div className="trial-input-wrap">
+                  <i className="bi bi-person trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    className="form-control trial-input"
+                    name="lastName"
+                    placeholder="Last name"
+                    value={customer.lastName}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="col-12">
-                <label className="form-label">Email address</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  name="email"
-                  placeholder="Your email"
-                  value={customer.email}
-                  onChange={handleCustomerFieldChange}
-                  required
-                />
+                {/* <label className="form-label">Email address</label> */}
+                <div className="trial-input-wrap">
+                  <i className="bi bi-envelope trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    type="email"
+                    className="form-control trial-input"
+                    name="email"
+                    placeholder="Your email address"
+                    value={customer.email}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
+                </div>
               </div>
 
-              <div className="col-4 col-sm-3">
-                <label className="form-label">Code</label>
+              <div className="col-5 col-sm-4">
+                {/* <label className="form-label">Country Code</label> */}
                 <select
-                  className="form-select"
+                  className="form-select trial-input"
+                  style={{ paddingLeft: 12 }}
                   name="countryPhoneCode"
                   value={customer.countryPhoneCode}
                   onChange={handleCustomerFieldChange}
                   required
                 >
-                  {PHONE_CODES.map((code) => (
-                    <option key={code} value={code}>
-                      {code}
+                  {COUNTRIES.map((c) => (
+                    <option key={c.name} value={c.phoneCode}>
+                      {c.phoneCode} ({c.name})
                     </option>
                   ))}
                 </select>
               </div>
-              <div className="col-8 col-sm-9">
-                <label className="form-label">Mobile / WhatsApp number</label>
-                <input
-                  className="form-control"
-                  name="mobileNumber"
-                  placeholder="(555) 000-0000"
-                  value={customer.mobileNumber}
-                  onChange={handleCustomerFieldChange}
-                  required
-                />
+              <div className="col-7 col-sm-8">
+                {/* <label className="form-label">Mobile / WhatsApp number</label> */}
+                <div className="trial-input-wrap">
+                  <i className="bi bi-telephone trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    className="form-control trial-input"
+                    name="mobileNumber"
+                    placeholder="98765 43210"
+                    value={customer.mobileNumber}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="col-md-6">
-                <label className="form-label">Country</label>
-                <select
-                  className="form-select"
-                  name="countryRegion"
-                  value={customer.countryRegion}
-                  onChange={handleCountryChange}
-                  required
-                >
-                  {COUNTRIES.map((c) => (
-                    <option key={c.name} value={c.name}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                {/* <label className="form-label">Country</label> */}
+                <div className="trial-input-wrap">
+                  <i className="bi bi-geo-alt trial-input-icon" aria-hidden="true"></i>
+                  <select
+                    className="form-select trial-input"
+                    name="countryRegion"
+                    value={customer.countryRegion}
+                    onChange={handleCountryChange}
+                    required
+                  >
+                    {COUNTRIES.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="col-md-6">
-                <label className="form-label">Select your slot</label>
-                <select
-                  className="form-select"
-                  value={selectedSlotId ?? ""}
-                  onChange={(e) => setSelectedSlotId(Number(e.target.value))}
-                  disabled={slotsStatus !== "success" || slots.length === 0}
-                  required
-                >
-                  <option value="" disabled>
-                    {slotsStatus === "loading"
-                      ? "Loading slots…"
-                      : slotsStatus === "error"
-                      ? "Could not load slots"
-                      : slots.length === 0
-                      ? "No slots available"
-                      : "Choose a slot"}
-                  </option>
-                  {slots.map((slot) => (
-                    <option key={slot.id} value={slot.id}>
-                      {formatSlot(slot)}
+                {/* <label className="form-label">Select your slot</label> */}
+                <div className="trial-input-wrap">
+                  <i className="bi bi-calendar3 trial-input-icon" aria-hidden="true"></i>
+                  <select
+                    className="form-select trial-input"
+                    value={selectedSlotId ?? ""}
+                    onChange={(e) => setSelectedSlotId(Number(e.target.value))}
+                    disabled={slotsStatus !== "success" || slots.length === 0}
+                    required
+                  >
+                    <option value="" disabled>
+                      {slotsStatus === "loading"
+                        ? "Loading slots…"
+                        : slotsStatus === "error"
+                        ? "Could not load slots"
+                        : slots.length === 0
+                        ? "No slots available"
+                        : "Choose a slot"}
                     </option>
-                  ))}
-                </select>
+                    {slots.map((slot) => (
+                      <option key={slot.id} value={slot.id}>
+                        {formatSlot(slot)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="col-12">
-                <label className="form-label">Address</label>
-                <input
-                  className="form-control"
-                  name="address"
-                  placeholder="Your address"
-                  value={customer.address}
-                  onChange={handleCustomerFieldChange}
-                />
+                {/* <label className="form-label">Address</label> */}
+                <div className="trial-input-wrap">
+                  <i className="bi bi-house trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    className="form-control trial-input"
+                    name="address"
+                    placeholder="Your address"
+                    value={customer.address}
+                    onChange={handleCustomerFieldChange}
+                  />
+                </div>
               </div>
             </div>
 
@@ -432,6 +455,8 @@ export default function TrialDetailsPage() {
           <button type="button" className="checkout-back-link" onClick={() => navigate(-1)}>
             <i className="bi bi-arrow-left"></i> Back
           </button>
+
+    </div>
         </div>
 
         {/* RIGHT: Plan summary card */}
@@ -451,22 +476,12 @@ export default function TrialDetailsPage() {
           style={{
             fontSize: 22,
             fontWeight: 700,
-           
+            margin: 0,
             lineHeight: 1.3,
           }}
         >
           Your Yoga Plan
         </h2>
-
-        <p
-          className="text-muted mb-0"
-          style={{
-            fontSize: 15,
-            lineHeight: 1.5,
-          }}
-        >
-          Simple. Peaceful. Just for you.
-        </p>
       </div>
 
       <span
@@ -551,18 +566,13 @@ export default function TrialDetailsPage() {
           </div>
 
           {selectedDuration && (
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-                lineHeight: 1.3,
-              }}
-            >
-              {formatPrice(
-                selectedDuration.currency,
-                selectedDuration.price
-              )}
+            <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.3 }}>
+                {formatPrice(selectedDuration.currency, selectedDuration.price)}
+              </div>
+              <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.4 }}>
+                /{formatCadence(selectedDuration.durationLabel)}
+              </div>
             </div>
           )}
         </div>
@@ -692,7 +702,7 @@ export default function TrialDetailsPage() {
     <button
       type="submit"
       form="trial-details-form"
-      className="btn w-100"
+      className="btn w-100 d-inline-flex align-items-center justify-content-center gap-2"
       style={{
         background: "#ff6b1b",
         color: "#fff",
@@ -704,7 +714,11 @@ export default function TrialDetailsPage() {
       }}
       disabled={submitting || planStatus === "loading"}
     >
-      {submitting ? "Please wait…" : "Continue to checkout"}
+      {submitting ? "Please wait…" : (
+        <>
+          Continue to checkout <i className="bi bi-arrow-right" aria-hidden="true"></i>
+        </>
+      )}
     </button>
 
     {selectedDuration && (

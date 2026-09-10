@@ -9,7 +9,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: #fff;
+  background: #fffdfb;
 }
 
 .checkout-page-main {
@@ -44,7 +44,7 @@ background-color :#AAAEAA;
   gap: 6px;
   padding: 12px 45px;
   border-radius: 999px;
-  border: 1px solid #ff6b1b;
+  border: 2px solid #ff6b1b;
   color: #fff;
   font-weight: 600;
   font-size: 14px;
@@ -54,9 +54,9 @@ background-color :#AAAEAA;
 }
 
 .checkout-header-home-btn:hover {
-  background: #fff;
-    border: 1px solid #ff6b1b;
-  color: #ff6b1b;
+  background: transparent;
+    border: 2px solid #fff;
+  color: #fff;
 }
 
 /* Footer */
@@ -128,7 +128,7 @@ background-color :#AAAEAA;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 24px;
+  margin-top: 35px;
   color: #6b6560;
   font-size: 14px;
   font-weight: 600;
@@ -164,4 +164,428 @@ background-color :#AAAEAA;
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/*=========================================
+    FREE TRIAL THANK YOU PAGE
+=========================================*/
+
+.thankyou-page {
+  position: relative;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 20px;
+  text-align: center;
+  overflow: hidden;
+  background: #fffdfb;
+}
+
+/* Two very faint pastel blobs — the only "decorative element", never an illustration */
+.thankyou-page::before,
+.thankyou-page::after {
+  content: "";
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.35;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.thankyou-page::before {
+  top: -120px;
+  left: -140px;
+  background: #ffe3cc;
+}
+
+.thankyou-page::after {
+  bottom: -100px;
+  right: -140px;
+  background: #e3f3df;
+}
+
+.thankyou-confetti {
+  position: absolute;
+  inset: -20px 0 auto 0;
+  height: 260px;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.thankyou-confetti-piece {
+  position: absolute;
+  top: -24px;
+  width: 9px;
+  height: 14px;
+  opacity: 0;
+  border-radius: 2px;
+}
+
+.thankyou-hero,
+.thankyou-card,
+.thankyou-cta {
+  position: relative;
+  z-index: 1;
+}
+
+.thankyou-success-icon-wrap {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 20px;
+}
+
+.thankyou-burst {
+  position: absolute;
+  inset: -22px;
+}
+
+.thankyou-burst-ray {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 12px;
+  margin: -6px 0 0 -1px;
+  border-radius: 2px;
+  background: #ffb648;
+  /* The full transform (rotate, THEN translate outward along the now-rotated local axis —
+     the standard technique for elements radiating from one center point) is set inline per
+     ray in JSX, since inline style fully replaces this class's `transform`, not merges with
+     it; this base rule only supplies the ray's shape/color. */
+}
+
+.thankyou-success-icon {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: #e5f5e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3a9d3a;
+  font-size: 34px;
+  position: relative;
+}
+
+.thankyou-hero h1 {
+  font-size: 30px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #1c1a17;
+}
+
+.thankyou-subtitle {
+  font-size: 16px;
+  color: #55504a;
+  margin: 0 0 4px;
+}
+
+.thankyou-tagline {
+  font-size: 14px;
+  color: #8a8380;
+  margin: 0 0 28px;
+}
+
+.thankyou-card {
+  text-align: left;
+  /* No boxed/card treatment by design — this section reads as part of the same continuous
+     page background (.thankyou-page) rather than a separate white card. Content, spacing,
+     and typography below are otherwise unchanged. */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 24px;
+  box-shadow: none;
+  margin-bottom: 24px;
+}
+
+.thankyou-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #f3ede4;
+}
+
+.thankyou-card-title {
+  font-size: 19px;
+  font-weight: 700;
+  margin: 0 0 3px;
+  color: #1c1a17;
+}
+
+.thankyou-card-subtitle {
+  font-size: 13px;
+  color: #8a8380;
+  margin: 0;
+}
+
+.thankyou-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid #f3ede4;
+}
+
+.thankyou-row:last-child {
+  border-bottom: none;
+}
+
+.thankyou-row-label {
+  font-size: 14px;
+  color: #6b6560;
+}
+
+.thankyou-row-value {
+  font-size: 14px;
+  color: #1c1a17;
+  font-weight: 600;
+  text-align: right;
+}
+
+.thankyou-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  background: #e5f5e0;
+  color: #2f7d2f;
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  padding: 6px 14px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.thankyou-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3a9d3a;
+}
+
+.thankyou-billing-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #eef8ec;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 18px;
+}
+
+.thankyou-billing-note p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4a6b41;
+}
+
+.thankyou-billing-icon {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #d8ecd2;
+  color: #3a9d3a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.thankyou-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ff6b1b;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 14px 32px;
+  border-radius: 999px;
+  text-decoration: none;
+  border: none;
+  margin-bottom: 40px;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.thankyou-cta:hover {
+  background: #e85f14;
+  color: #fff;
+}
+
+/* Real WhatsApp brand green (#25D366), not the Jovens orange — this is a WhatsApp deep-link
+   button, not another primary-brand CTA. */
+.thankyou-cta-whatsapp {
+  background: #25d366;
+  font-size: 16px;
+}
+
+.thankyou-cta-whatsapp i {
+  font-size: 20px;
+}
+
+.thankyou-cta-whatsapp:hover {
+  background: #20bd5c;
+  color: #fff;
+}
+
+@media (max-width: 575px) {
+  .thankyou-card {
+    padding: 18px;
+  }
+
+  .thankyou-card-head {
+    flex-direction: column;
+  }
+
+  .thankyou-row {
+    flex-wrap: wrap;
+  }
+
+  .thankyou-row-value {
+    text-align: left;
+    width: 100%;
+  }
+}
+
+/* Motion — only for viewers who haven't asked for reduced motion */
+@media (prefers-reduced-motion: no-preference) {
+  .thankyou-hero {
+    animation: thankyou-fade-slide-in 0.6s ease-out both;
+  }
+
+  .thankyou-card {
+    animation: thankyou-fade-slide-in 0.6s ease-out 0.15s both;
+  }
+
+  .thankyou-cta {
+    animation: thankyou-fade-slide-in 0.6s ease-out 0.3s both;
+  }
+
+  .thankyou-success-icon {
+    animation: thankyou-pop 0.5s ease-out 0.15s both;
+  }
+
+  .thankyou-burst-ray {
+    animation: thankyou-burst-fade 0.9s ease-out 0.2s both;
+  }
+
+  .thankyou-confetti-piece {
+    animation-name: thankyou-confetti-fall;
+    animation-timing-function: cubic-bezier(0.35, 0, 0.65, 1);
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+  }
+}
+
+@keyframes thankyou-fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes thankyou-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Only opacity is animated here — each ray's position/angle is set once via its inline
+   `transform` (rotate + translateY out from center) in JSX; a keyframe touching `transform`
+   would override that positioning for the animation's duration. */
+@keyframes thankyou-burst-fade {
+  0% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes thankyou-confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(280px) rotate(340deg);
+  }
+}
+
+/*=========================================
+    START YOUR FREE TRIAL (TRIAL DETAILS) PAGE
+=========================================*/
+
+.trial-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #ff6b1b;
+  margin-bottom: 10px;
+}
+
+.trial-eyebrow::before {
+  content: "";
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: #ff6b1b;
+  display: inline-block;
+}
+
+.trial-input-wrap {
+  position: relative;
+}
+
+.trial-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #b3aca2;
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.trial-input {
+  padding-left: 40px !important;
+  border-radius: 10px !important;
+  border: 1px solid #ece5da !important;
+  background: #fff !important;
+  padding-top: 11px !important;
+  padding-bottom: 11px !important;
+}
+
+.trial-input:focus {
+  border-color: #ff6b1b !important;
+  box-shadow: 0 0 0 3px rgba(255, 107, 27, 0.12) !important;
 }
