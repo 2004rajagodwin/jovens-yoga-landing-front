@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import OtpVerificationModal from "../../components/OtpVerificationModal.jsx";
 import { checkTrialEligibility, createTrial, getTrialByToken } from "../../services/trialApi.js";
-import { createTrialCheckoutSession } from "../../services/paymentApi.js";
+import { createTrialCheckoutSession, cancelTrialAutoPay } from "../../services/paymentApi.js";
+import CancelAutoPayModal from "../../components/CancelAutoPayModal.jsx";
 import { getActiveSlots } from "../../services/slotApi.js";
 import { getPlan } from "../../services/planApi.js";
 import { ApiError } from "../../services/apiClient.js";
@@ -60,10 +61,59 @@ export default function TrialDetailsPage() {
   const [blockedStatus, setBlockedStatus] = useState(null); // "TRIAL_ACTIVE" | "TRIAL_EXPIRED"
   const [blockedTrial, setBlockedTrial] = useState(null);
   const [blockedAccessToken, setBlockedAccessToken] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   // Holds the just-submitted "User Details" values while the OTP modal is open — nothing
   // below (eligibility check, trial creation) runs until OTP verification succeeds.
   const [pendingCustomer, setPendingCustomer] = useState(null);
+
+  // Lets ThankYouPage's "Back"/"View My Trial Details" link land straight on this same
+  // active-trial view, reusing the trial's own short-lived access token — no need to
+  // re-run the User Details form or OTP again for a trial the visitor just created.
+  const directToken = searchParams.get("token");
+
+  useEffect(() => {
+    if (!directToken) return;
+    let cancelled = false;
+    getTrialByToken(directToken)
+      .then((trial) => {
+        if (cancelled || trial.status !== "TRIAL_ACTIVE") return;
+        setBlockedTrial(trial);
+        setBlockedStatus("TRIAL_ACTIVE");
+        setBlockedMessage("Your free trial is already active.");
+        setBlockedAccessToken(directToken);
+        setBlockedCustomer({ firstName: trial.firstName });
+      })
+      .catch(() => {
+        // Invalid/expired token — silently fall through to the normal entry requirements.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [directToken]);
+
+  async function handleConfirmCancelAutoPay() {
+    if (cancelling || !blockedAccessToken) return;
+    setCancelling(true);
+    setCancelError("");
+    try {
+      await cancelTrialAutoPay(blockedAccessToken);
+      setBlockedTrial((prev) => (prev ? { ...prev, autoPayCancelled: true } : prev));
+      setShowCancelModal(false);
+    } catch (err) {
+      setCancelError(err instanceof ApiError ? err.message : "Could not cancel AutoPay. Please try again.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  function handleCloseCancelModal() {
+    if (cancelling) return;
+    setShowCancelModal(false);
+    setCancelError("");
+  }
 
   useEffect(() => {
     getActiveSlots()
@@ -174,22 +224,11 @@ export default function TrialDetailsPage() {
     navigate(`/checkout/duration?planId=${planId}&flow=paid`);
   }
 
-  if (!planId || !durationId) {
-    return (
-      <CheckoutLayout>
-        <div className="container py-5 text-center">
-          <p>Missing plan or duration selection. Please start from the pricing section.</p>
-          <Link to="/">Back to Home</Link>
-        </div>
-      </CheckoutLayout>
-    );
-  }
-
   if (blockedMessage && blockedStatus === "TRIAL_ACTIVE") {
     return (
       <CheckoutLayout>
-      <div className="container py-5" style={{ maxWidth: 640 }}>
-        <div className="alert alert-warning">
+      <div className="container py-5" style={{ maxWidth: 680 }}>
+        <div className="alert alert-warning" style={{padding:16}}>
           <h2 className="mb-2" style={{ fontSize: 20 }}>
             🎉 Your Free Trial is Already Active
           </h2>
@@ -217,25 +256,75 @@ export default function TrialDetailsPage() {
               <p className="mb-0">
                 <strong>Status:</strong> FREE TRIAL ACTIVE
               </p>
+              {blockedTrial.autoPayCancelled && (
+                <p className="mb-0" style={{ color: "#b45309", fontWeight: 600 }}>
+                  AutoPay: CANCELLED
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-muted">Loading your trial details…</p>
           )}
-          <p className="text-muted mt-3">
+          <p className="text-muted mt-3 paraksfo">
             You can continue using your trial{blockedTrial ? ` until ${new Date(blockedTrial.trialExpiryDate).toLocaleString()}` : ""}.
-            The saved payment method will be used for the scheduled subscription charge after the trial ends.
+            {blockedTrial?.autoPayCancelled
+              ? " AutoPay has been cancelled, so no payment will be taken after the trial ends."
+              : " The saved payment method will be used for the scheduled subscription charge after the trial ends."}
           </p>
-          {blockedTrial && blockedAccessToken && (
-            <Link
-              to={`/thank-you?type=trial&token=${encodeURIComponent(blockedAccessToken)}`}
-              className="btn"
-              style={{ background: "#ff6b1b", color: "#fff" }}
-            >
-              View My Trial Details
-            </Link>
+
+          {cancelError && (
+            <div className="alert alert-danger" role="alert" style={{ fontSize: 13 }}>
+              {cancelError}
+            </div>
           )}
+
+          {blockedTrial && blockedAccessToken && (
+            <div className="d-flex flex-wrap gap-2">
+              <Link
+                to={`/thank-you?type=trial&token=${encodeURIComponent(blockedAccessToken)}`}
+                className="btn"
+                style={{ background: "#ff6b1b", color: "#fff" }}
+              >
+                View My Trial Details
+              </Link>
+              {!blockedTrial.autoPayCancelled && (
+                <button
+                  type="button"
+                  className="btn btn-outline-danger"
+                  onClick={() => setShowCancelModal(true)}
+                  disabled={cancelling}
+                >
+                  Cancel Subscription
+                </button>
+              )}
+            </div>
+          )}
+
+          <button type="button" className="checkout-back-link mt-3" onClick={() => navigate(-1)}>
+            <i className="bi bi-arrow-left"></i> Back
+          </button>
         </div>
       </div>
+
+      {showCancelModal && (
+        <CancelAutoPayModal
+          onConfirm={handleConfirmCancelAutoPay}
+          onCancel={handleCloseCancelModal}
+          submitting={cancelling}
+          errorMessage={cancelError}
+        />
+      )}
+      </CheckoutLayout>
+    );
+  }
+
+  if (!planId || !durationId) {
+    return (
+      <CheckoutLayout>
+        <div className="container py-5 text-center">
+          <p>Missing plan or duration selection. Please start from the pricing section.</p>
+          <Link to="/">Back to Home</Link>
+        </div>
       </CheckoutLayout>
     );
   }

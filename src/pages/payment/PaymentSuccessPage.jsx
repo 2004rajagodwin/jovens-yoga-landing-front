@@ -4,8 +4,13 @@ import { getOrder } from "../../services/orderApi.js";
 import { getTrialByToken } from "../../services/trialApi.js";
 import { clearCheckoutState } from "../../services/checkoutState.js";
 
-const MAX_ATTEMPTS = 10;
-const POLL_INTERVAL_MS = 2000;
+const FAST_POLL_ATTEMPTS = 10; // ~20s of active "Confirming…" polling before reassuring the user
+const FAST_POLL_INTERVAL_MS = 2000;
+// Stripe webhook delivery is normally near-instant but can legitimately take longer
+// (retries, network latency). Once the fast window elapses, keep checking quietly in
+// the background at a slower cadence instead of dead-ending on a false negative.
+const SLOW_POLL_INTERVAL_MS = 5000;
+const MAX_TOTAL_ATTEMPTS = 40; // ~20s fast + ~150s slow ≈ 3 minutes before truly giving up
 
 /**
  * Landing here from Stripe's success_url is NOT proof of payment — it only means the
@@ -68,11 +73,16 @@ export default function PaymentSuccessPage() {
         }
 
         attemptsRef.current += 1;
-        if (attemptsRef.current >= MAX_ATTEMPTS) {
+        if (attemptsRef.current >= MAX_TOTAL_ATTEMPTS) {
           setPhase("timeout");
           return;
         }
-        setTimeout(poll, POLL_INTERVAL_MS);
+        if (attemptsRef.current >= FAST_POLL_ATTEMPTS) {
+          setPhase("timeout"); // reassure the user, but keep polling quietly below
+          setTimeout(poll, SLOW_POLL_INTERVAL_MS);
+          return;
+        }
+        setTimeout(poll, FAST_POLL_INTERVAL_MS);
       } catch {
         if (!cancelled) setPhase("error");
       }

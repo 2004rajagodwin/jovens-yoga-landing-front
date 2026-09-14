@@ -65,6 +65,7 @@ export default function DurationPage() {
 
   return (
     <CheckoutLayout>
+      <div style={{ marginTop: 30 }}>
       <div className="container py-5 mt-5" style={{ maxWidth: 640 }}>
         <h1 className="mb-2 tamionere" style={{ fontSize: 28, fontWeight: 700 }}>
           Choose a Duration for {plan.name}
@@ -90,6 +91,11 @@ export default function DurationPage() {
           ))}
           {activeDurations.length === 0 && <p>No duration options are currently available for this plan.</p>}
         </div>
+
+        <button type="button" className="checkout-back-link" onClick={() => navigate(-1)}>
+          <i className="bi bi-arrow-left"></i> Back
+        </button>
+      </div>
       </div>
     </CheckoutLayout>
   );

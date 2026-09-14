@@ -3993,8 +3993,9 @@ padding: 10px 16px;
 /* Standard */
 
 .one-price-standard-btn {
-  border: 1px solid #e5e5e5;
-  color: #b8b8b8;
+ 
+  border: 1.13px solid #19191952;
+  color: #000000;
   background: #fff;
    transition: 0.3s;
 }

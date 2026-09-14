@@ -14,3 +14,12 @@ export function createTrialCheckoutSession(accessToken) {
     method: "POST",
   });
 }
+
+// Cancels future AutoPay billing on the trial's Stripe subscription (cancel-at-period-end).
+// The current free trial access is never affected — resolved by access token only, never a
+// raw trial id.
+export function cancelTrialAutoPay(accessToken) {
+  return apiRequest(`/api/payments/trials/access/${encodeURIComponent(accessToken)}/cancel-autopay`, {
+    method: "POST",
+  });
+}

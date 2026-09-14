@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { getTrialByToken } from "../services/trialApi.js";
 import { getOrder } from "../services/orderApi.js";
+import { cancelTrialAutoPay } from "../services/paymentApi.js";
 import CheckoutLayout from "../components/checkout/CheckoutLayout.jsx";
 import ThankYouConfetti from "../components/ThankYouConfetti.jsx";
+import CancelAutoPayModal from "../components/CancelAutoPayModal.jsx";
+import { ApiError } from "../services/apiClient.js";
 
 /**
  * Single Thank You concept for both flows. A visitor can freely type
@@ -14,10 +17,14 @@ import ThankYouConfetti from "../components/ThankYouConfetti.jsx";
 export default function ThankYouPage() {
   const [searchParams] = useSearchParams();
   const type = searchParams.get("type");
+  const token = searchParams.get("token");
 
   const [status, setStatus] = useState("loading"); // loading | success | not-found
   const [trial, setTrial] = useState(null);
   const [order, setOrder] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +32,6 @@ export default function ThankYouPage() {
     async function load() {
       try {
         if (type === "trial") {
-          const token = searchParams.get("token");
           const data = await getTrialByToken(token);
           if (cancelled) return;
           const converted = data.status === "TRIAL_EXPIRED" && data.paymentAmount != null;
@@ -57,7 +63,28 @@ export default function ThankYouPage() {
     return () => {
       cancelled = true;
     };
-  }, [type, searchParams]);
+  }, [type, searchParams, token]);
+
+  async function handleConfirmCancelAutoPay() {
+    if (cancelling || !token) return;
+    setCancelling(true);
+    setCancelError("");
+    try {
+      await cancelTrialAutoPay(token);
+      setTrial((prev) => (prev ? { ...prev, autoPayCancelled: true } : prev));
+      setShowCancelModal(false);
+    } catch (err) {
+      setCancelError(err instanceof ApiError ? err.message : "Could not cancel AutoPay. Please try again.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  function handleCloseCancelModal() {
+    if (cancelling) return;
+    setShowCancelModal(false);
+    setCancelError("");
+  }
 
   if (status === "loading") {
     return (
@@ -210,7 +237,32 @@ export default function ThankYouPage() {
                 according to your selected plan after the trial ends.
               </p>
             </div>
+
+            <div className="d-flex flex-wrap gap-2 mt-3">
+              <Link to={`/trial/details?token=${encodeURIComponent(token)}`} className="checkout-back-link">
+                <i className="bi bi-arrow-left"></i> Back
+              </Link>
+              {!trial.autoPayCancelled && (
+                <button
+                  type="button"
+                  className="btn btn-outline-danger"
+                  onClick={() => setShowCancelModal(true)}
+                  disabled={cancelling}
+                >
+                  Cancel Subscription
+                </button>
+              )}
+            </div>
           </div>
+
+          {showCancelModal && (
+            <CancelAutoPayModal
+              onConfirm={handleConfirmCancelAutoPay}
+              onCancel={handleCloseCancelModal}
+              submitting={cancelling}
+              errorMessage={cancelError}
+            />
+          )}
 
           {/* Same real WhatsApp contact number already used by the site-wide floating button
               on Home.jsx (insd-new-fix-whatsapp) — reused here, not a new/invented number.
