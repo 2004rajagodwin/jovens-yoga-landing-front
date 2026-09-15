@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import OtpVerificationModal from "../../components/OtpVerificationModal.jsx";
 import { checkTrialEligibility, createTrial, getTrialByToken } from "../../services/trialApi.js";
@@ -8,9 +8,22 @@ import { getActiveSlots } from "../../services/slotApi.js";
 import { getPlan } from "../../services/planApi.js";
 import { ApiError } from "../../services/apiClient.js";
 import { updateCheckoutState } from "../../services/checkoutState.js";
-import { COUNTRIES } from "../../lib/countries.js";
+import { SUPPORTED_COUNTRIES, detectSupportedCountryName } from "../../lib/countryDetection.js";
+import { getPricing } from "../../services/pricingApi.js";
 import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 
+// Trial registration only supports these 5 countries/phone codes — a deliberately shorter
+// list than the shared COUNTRIES set (used elsewhere, e.g. the paid checkout flow) so that
+// list stays untouched. Keeping this list short also keeps the native <select> popup short
+// enough that browsers reliably render it downward instead of flipping upward for lack of
+// room below — browsers choose that direction themselves based on available viewport space,
+// which can't be forced via CSS/HTML without replacing the native control entirely.
+// Derived from SUPPORTED_COUNTRIES (the same 5-country map the auto-detection logic uses)
+// rather than duplicating the name/phoneCode pairs a second time.
+const TRIAL_COUNTRIES = Object.entries(SUPPORTED_COUNTRIES).map(([name, details]) => ({
+  name,
+  phoneCode: details.phoneCode,
+}));
 
 const EMPTY_CUSTOMER = {
   firstName: "",
@@ -68,6 +81,50 @@ export default function TrialDetailsPage() {
   // Holds the just-submitted "User Details" values while the OTP modal is open — nothing
   // below (eligibility check, trial creation) runs until OTP verification succeeds.
   const [pendingCustomer, setPendingCustomer] = useState(null);
+
+  // Guards the one-time country auto-detection: true once the user has touched the Country
+  // field themselves (or a detection result already landed), so a slow-resolving lookup can
+  // never clobber a manual choice, and StrictMode's mount→cleanup→mount replay can never
+  // trigger a second network call.
+  const countryAutoDetectStartedRef = useRef(false);
+  const countryManuallySelectedRef = useRef(false);
+
+  // Backend-resolved price for the currently selected country — the frontend never computes
+  // a converted amount itself. Refetched only when the selected duration or country actually
+  // changes (not on every render/keystroke).
+  const [pricing, setPricing] = useState(null);
+
+  useEffect(() => {
+    if (!durationId || !customer.countryRegion) return;
+    const isoCode = SUPPORTED_COUNTRIES[customer.countryRegion]?.isoCode;
+    let cancelled = false;
+    getPricing(durationId, isoCode)
+      .then((data) => {
+        if (!cancelled) setPricing(data);
+      })
+      .catch(() => {
+        // Display-only preview — a failure here just leaves the previous/native price shown
+        // (see priceDisplay below), it never blocks the form or checkout.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [durationId, customer.countryRegion]);
+
+  useEffect(() => {
+    if (countryAutoDetectStartedRef.current) return;
+    countryAutoDetectStartedRef.current = true;
+    let cancelled = false;
+    detectSupportedCountryName().then((countryName) => {
+      if (cancelled || countryManuallySelectedRef.current) return;
+      const details = SUPPORTED_COUNTRIES[countryName];
+      if (!details) return;
+      setCustomer((prev) => ({ ...prev, countryRegion: countryName, countryPhoneCode: details.phoneCode }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Lets ThankYouPage's "Back"/"View My Trial Details" link land straight on this same
   // active-trial view, reusing the trial's own short-lived access token — no need to
@@ -136,15 +193,19 @@ export default function TrialDetailsPage() {
 
   function handleCustomerFieldChange(e) {
     const { name, value } = e.target;
+    if (name === "countryPhoneCode") {
+      countryManuallySelectedRef.current = true;
+    }
     setCustomer((prev) => ({ ...prev, [name]: value }));
   }
 
   function handleCountryChange(e) {
-    const country = COUNTRIES.find((c) => c.name === e.target.value);
+    countryManuallySelectedRef.current = true;
+    const details = SUPPORTED_COUNTRIES[e.target.value];
     setCustomer((prev) => ({
       ...prev,
       countryRegion: e.target.value,
-      countryPhoneCode: country ? country.phoneCode : prev.countryPhoneCode,
+      countryPhoneCode: details ? details.phoneCode : prev.countryPhoneCode,
     }));
   }
 
@@ -371,6 +432,10 @@ export default function TrialDetailsPage() {
 
   const selectedDuration = plan?.durations?.find((d) => d.id === durationId) || null;
   const selectedSlot = slots.find((s) => s.id === selectedSlotId) || null;
+  // Prefer the backend-resolved (country-converted) price; fall back to the duration's own
+  // native price only while that request hasn't resolved yet, or if it failed — never a
+  // frontend-computed conversion.
+  const displayPriceText = pricing ? pricing.formattedAmount : (selectedDuration ? formatPrice(selectedDuration.currency, selectedDuration.price) : "");
   // The Plan entity's own trialDurationDays is usually unset for Standard/Premium, in which
   // case the backend falls back to app.trial.default-duration-days (5) — mirrored here only
   // as a display fallback, never sent to the backend, which always computes this itself.
@@ -448,7 +513,7 @@ export default function TrialDetailsPage() {
                   onChange={handleCustomerFieldChange}
                   required
                 >
-                  {COUNTRIES.map((c) => (
+                  {TRIAL_COUNTRIES.map((c) => (
                     <option key={c.name} value={c.phoneCode}>
                       {c.phoneCode} ({c.name})
                     </option>
@@ -481,7 +546,7 @@ export default function TrialDetailsPage() {
                     onChange={handleCountryChange}
                     required
                   >
-                    {COUNTRIES.map((c) => (
+                    {TRIAL_COUNTRIES.map((c) => (
                       <option key={c.name} value={c.name}>
                         {c.name}
                       </option>
@@ -657,7 +722,7 @@ export default function TrialDetailsPage() {
           {selectedDuration && (
             <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
               <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1.3 }}>
-                {formatPrice(selectedDuration.currency, selectedDuration.price)}
+                {displayPriceText}
               </div>
               <div className="text-muted" style={{ fontSize: 13, lineHeight: 1.4 }}>
                 /{formatCadence(selectedDuration.durationLabel)}
@@ -742,12 +807,7 @@ export default function TrialDetailsPage() {
             >
               Your membership will auto-renew
               {selectedDuration
-                ? ` at ${formatPrice(
-                    selectedDuration.currency,
-                    selectedDuration.price
-                  )}/${formatCadence(
-                    selectedDuration.durationLabel
-                  )}`
+                ? ` at ${displayPriceText}/${formatCadence(selectedDuration.durationLabel)}`
                 : ""}
               .
             </div>
@@ -819,10 +879,7 @@ export default function TrialDetailsPage() {
         }}
       >
         {trialDays} days free · Then{" "}
-        {formatPrice(
-          selectedDuration.currency,
-          selectedDuration.price
-        )}
+        {displayPriceText}
         /{formatCadence(selectedDuration.durationLabel)}
 
         <span style={{ color: "#ff6b1b" }}>

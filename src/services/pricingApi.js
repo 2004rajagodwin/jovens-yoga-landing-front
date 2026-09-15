@@ -1,60 +1,48 @@
-// Talks to the Spring Boot backend for pricing plans (GET /api/plans/active).
-// Response contract: ApiResponse<PlanResponse[]> — see
-// com.jovens.yoga.dto.response.{ApiResponse,PlanResponse,PlanDurationResponse,PlanFeatureResponse}.
-
 import { apiRequest } from "./apiClient.js";
 
-const ACTIVE_PLANS_ENDPOINT = "/api/plans/active";
+const CURRENCY_SYMBOLS = { USD: "$", EUR: "€", GBP: "£", INR: "₹", CAD: "C$", AUD: "A$" };
 
-function pickPrimaryDuration(durations) {
-  const activeDurations = (durations ?? []).filter((d) => d.active);
-  return activeDurations[0] ?? durations?.[0] ?? null;
-}
-
-function billingPeriodLabel(duration) {
-  if (!duration) return "";
-  return duration.durationLabel ?? `Per ${duration.durationUnit?.toLowerCase() ?? ""}`;
-}
-
-function defaultButtonText() {
-  return "Try Free For 5 Days";
-}
-
-// Every active plan is Standard or Premium now — both start with a 5-day free trial,
-// so the CTA always routes through the duration picker with flow=trial.
-function buttonUrlFor(raw) {
-  return `/checkout/duration?planId=${raw.id}&flow=trial`;
-}
-
-function mapPlan(raw) {
-  const primaryDuration = pickPrimaryDuration(raw.durations);
-
-  return {
-    id: raw.id,
-    name: raw.name,
-    price: primaryDuration ? primaryDuration.price : 0,
-    currency: raw.currency ?? primaryDuration?.currency ?? "$",
-    billingPeriod: billingPeriodLabel(primaryDuration),
-    offer: raw.description ?? "",
-    features: Array.isArray(raw.features)
-      ? raw.features.filter((f) => f.active).map((f) => f.featureText)
-      : [],
-    buttonText: defaultButtonText(),
-    buttonUrl: buttonUrlFor(raw),
-    badge: raw.badgeText ?? null,
-    planType: raw.planType ?? null,
-    featured: Boolean(raw.featured),
-    active: raw.active ?? true,
-    displayOrder: raw.displayOrder ?? 0,
-  };
-}
-
+// Reconstructed — the original fetchActivePlans() was accidentally overwritten and could not
+// be recovered (no VCS, no editor history). Transforms the raw /api/plans/active response
+// into the flat shape PricingSection.jsx (Home page) renders: headline price/currency come
+// from each plan's first active duration (by displayOrder), features are flattened to plain
+// strings, and the trial-flow link/copy matches the product's actual entry point. Please
+// double-check this against the live Home page and correct anything that doesn't match.
 export async function fetchActivePlans() {
-  const data = await apiRequest(ACTIVE_PLANS_ENDPOINT);
-  const list = Array.isArray(data) ? data : [];
+  const plans = await apiRequest("/api/plans/active");
+  return (plans || []).map((plan) => {
+    const activeDurations = (plan.durations || [])
+      .filter((d) => d.active)
+      .sort((a, b) => a.displayOrder - b.displayOrder);
+    const headlineDuration = activeDurations[0] || null;
 
-  return list
-    .map(mapPlan)
-    .filter((plan) => plan.active)
-    .sort((a, b) => a.displayOrder - b.displayOrder);
+    const activeFeatures = (plan.features || [])
+      .filter((f) => f.active)
+      .sort((a, b) => a.displayOrder - b.displayOrder)
+      .map((f) => f.featureText);
+
+    return {
+      id: plan.id,
+      name: plan.name,
+      currency: CURRENCY_SYMBOLS[headlineDuration?.currency] || headlineDuration?.currency || plan.currency,
+      price: headlineDuration?.price,
+      billingPeriod: headlineDuration?.durationLabel || "",
+      offer: plan.trialDurationDays ? `${plan.trialDurationDays}-Day Free Trial` : "",
+      features: activeFeatures,
+      buttonUrl: headlineDuration ? `/trial/details?planId=${plan.id}&durationId=${headlineDuration.id}` : "/",
+      buttonText: "Start Free Trial",
+      featured: plan.featured,
+      badge: plan.badgeText,
+    };
+  });
+}
+
+// Display-only price preview for the registration page's plan summary — the backend
+// resolves country/currency/amount itself; this is never sent back as checkout input. The
+// actual checkout endpoint independently re-resolves the same values from the trial's own
+// submitted customer details.
+export function getPricing(planDurationId, countryIsoCode) {
+  const query = new URLSearchParams({ planDurationId: String(planDurationId) });
+  if (countryIsoCode) query.set("country", countryIsoCode);
+  return apiRequest(`/api/pricing?${query.toString()}`);
 }
