@@ -23,6 +23,7 @@ export async function fetchActivePlans() {
 
     return {
       id: plan.id,
+      durationId: headlineDuration?.id,
       name: plan.name,
       currency: CURRENCY_SYMBOLS[headlineDuration?.currency] || headlineDuration?.currency || plan.currency,
       price: headlineDuration?.price,

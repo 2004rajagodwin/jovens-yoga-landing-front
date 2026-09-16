@@ -13,11 +13,11 @@ const NAV_GROUPS = [
     title: "Management",
     items: [
       { to: "/admin/users", label: "Users", icon: "bi-people-fill" },
+      { to: "/admin/trials", label: "Trials", icon: "bi-hourglass-split" },
       { to: "/admin/plans", label: "Plans", icon: "bi-box-seam-fill" },
       { to: "/admin/slots", label: "Slots", icon: "bi-calendar-week" },
       { to: "/admin/orders", label: "Orders", icon: "bi-cart-check-fill" },
       { to: "/admin/payments", label: "Payments", icon: "bi-credit-card-fill" },
-      { to: "/admin/trials", label: "Trials", icon: "bi-hourglass-split" },
       { to: "/admin/notifications", label: "Notifications", icon: "bi-bell-fill" },
     ],
   },

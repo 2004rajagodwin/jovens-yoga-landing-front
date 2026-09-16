@@ -242,7 +242,7 @@ export default function ThankYouPage() {
               <Link to={`/trial/details?token=${encodeURIComponent(token)}`} className="checkout-back-link">
                 <i className="bi bi-arrow-left"></i> Back
               </Link>
-              {!trial.autoPayCancelled && (
+              {/* {!trial.autoPayCancelled && (
                 <button
                   type="button"
                   className="btn btn-outline-danger"
@@ -251,7 +251,7 @@ export default function ThankYouPage() {
                 >
                   Cancel Subscription
                 </button>
-              )}
+              )} */}
             </div>
           </div>
 

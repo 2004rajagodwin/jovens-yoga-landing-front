@@ -289,7 +289,7 @@ export default function TrialDetailsPage() {
     return (
       <CheckoutLayout>
       <div className="container py-5" style={{ maxWidth: 680 }}>
-        <div className="alert alert-warning" style={{padding:16}}>
+        <div className="alert alert-warning" style={{padding:22}}>
           <h2 className="mb-2" style={{ fontSize: 20 }}>
             🎉 Your Free Trial is Already Active
           </h2>
@@ -326,7 +326,7 @@ export default function TrialDetailsPage() {
           ) : (
             <p className="text-muted">Loading your trial details…</p>
           )}
-          <p className="text-muted mt-3 paraksfo">
+          <p className="text-muted  paraksfo" style={{ margin: "27px 0" }}>
             You can continue using your trial{blockedTrial ? ` until ${new Date(blockedTrial.trialExpiryDate).toLocaleString()}` : ""}.
             {blockedTrial?.autoPayCancelled
               ? " AutoPay has been cancelled, so no payment will be taken after the trial ends."
@@ -351,7 +351,7 @@ export default function TrialDetailsPage() {
               {!blockedTrial.autoPayCancelled && (
                 <button
                   type="button"
-                  className="btn btn-outline-danger"
+                  className="btn btn-danger"
                   onClick={() => setShowCancelModal(true)}
                   disabled={cancelling}
                 >
@@ -361,7 +361,7 @@ export default function TrialDetailsPage() {
             </div>
           )}
 
-          <button type="button" className="checkout-back-link mt-3" onClick={() => navigate(-1)}>
+          <button type="button" className="checkout-back-link " onClick={() => navigate(-1)}>
             <i className="bi bi-arrow-left"></i> Back
           </button>
         </div>

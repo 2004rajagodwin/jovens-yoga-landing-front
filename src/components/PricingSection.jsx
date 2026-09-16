@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchActivePlans } from "../services/pricingApi.js";
+import { fetchActivePlans, getPricing } from "../services/pricingApi.js";
+import { detectSupportedCountryName, SUPPORTED_COUNTRIES } from "../lib/countryDetection.js";
 
 function StandardCard({ plan }) {
   return (
@@ -95,17 +96,40 @@ export default function PricingSection() {
   useEffect(() => {
     let cancelled = false;
 
-    fetchActivePlans()
-      .then((data) => {
+    async function load() {
+      try {
+        const data = await fetchActivePlans();
         if (cancelled) return;
-        setPlans(data);
-        setStatus("success");
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setStatus("error");
-      });
 
+        // Same backend country-detection + pricing resolution already used successfully on
+        // the Trial Details page — no second detection/FX system, just the same two calls
+        // from a different entry point, so the amount shown here always matches what the
+        // Trial page later shows for the same plan/duration.
+        const countryName = await detectSupportedCountryName();
+        if (cancelled) return;
+        const isoCode = SUPPORTED_COUNTRIES[countryName]?.isoCode;
+
+        const withResolvedPricing = await Promise.all(
+          data.map(async (plan) => {
+            if (!plan.durationId) return plan;
+            try {
+              const pricing = await getPricing(plan.durationId, isoCode);
+              return { ...plan, currency: pricing.symbol, price: pricing.amount };
+            } catch {
+              return plan; // keep the native price/currency if this one resolution fails
+            }
+          })
+        );
+        if (cancelled) return;
+
+        setPlans(withResolvedPricing);
+        setStatus("success");
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    }
+
+    load();
     return () => {
       cancelled = true;
     };
