@@ -57,6 +57,7 @@ export default function TrialDetailsPage() {
   const [searchParams] = useSearchParams();
   const planId = Number(searchParams.get("planId"));
   const durationId = Number(searchParams.get("durationId"));
+  const tokenParam = searchParams.get("token");
   const navigate = useNavigate();
 
   const [plan, setPlan] = useState(null);
@@ -71,12 +72,23 @@ export default function TrialDetailsPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [blockedMessage, setBlockedMessage] = useState("");
   const [blockedCustomer, setBlockedCustomer] = useState(null);
-  const [blockedStatus, setBlockedStatus] = useState(null); // "TRIAL_ACTIVE" | "TRIAL_EXPIRED"
+  const [blockedStatus, setBlockedStatus] = useState(null); // "ACTIVE" | "RENEWAL_PENDING" | "PAYMENT_FAILED" | "TRIAL_ACTIVE" | "TRIAL_EXPIRED"
   const [blockedTrial, setBlockedTrial] = useState(null);
   const [blockedAccessToken, setBlockedAccessToken] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
+
+  // Derived trial & renewal state variables — declared before any effects, callbacks, or returns
+  const isPaid = blockedTrial?.paymentAmount != null || blockedTrial?.paymentDate != null;
+  const isPaidActive = blockedStatus === "ACTIVE" || isPaid;
+  const isExpiryPassed = blockedTrial?.trialExpiryDate ? new Date(blockedTrial.trialExpiryDate) <= new Date() : false;
+  const isExpired = isExpiryPassed;
+  const isAutoPayCancelled = Boolean(blockedTrial?.autoPayCancelled);
+  const isAutoPayEnabled = Boolean(blockedTrial && !blockedTrial.autoPayCancelled && blockedTrial.stripeSubscriptionId);
+  const isPaymentFailed = blockedStatus === "PAYMENT_FAILED" || blockedTrial?.status === "PAYMENT_FAILED";
+  const isRenewalPending = blockedStatus === "RENEWAL_PENDING" || Boolean(isAutoPayEnabled && isExpiryPassed && !isPaidActive && !isPaymentFailed);
+  const isTrialActive = blockedStatus === "TRIAL_ACTIVE" && !isExpiryPassed;
 
   // Holds the just-submitted "User Details" values while the OTP modal is open — nothing
   // below (eligibility check, trial creation) runs until OTP verification succeeds.
@@ -136,12 +148,35 @@ export default function TrialDetailsPage() {
     let cancelled = false;
     getTrialByToken(directToken)
       .then((trial) => {
-        if (cancelled || trial.status !== "TRIAL_ACTIVE") return;
+        if (cancelled || !trial) return;
         setBlockedTrial(trial);
-        setBlockedStatus("TRIAL_ACTIVE");
-        setBlockedMessage("Your free trial is already active.");
         setBlockedAccessToken(directToken);
-        setBlockedCustomer({ firstName: trial.firstName });
+        setBlockedCustomer({ firstName: trial.firstName, lastName: trial.lastName, email: trial.email });
+
+        const trialExpiryPassed = trial.trialExpiryDate && new Date(trial.trialExpiryDate) <= new Date();
+        const trialAutoPayActive = !trial.autoPayCancelled && Boolean(trial.stripeSubscriptionId);
+
+        if (trial.paymentAmount != null || trial.paymentDate != null) {
+          setBlockedStatus("ACTIVE");
+          setBlockedMessage("Your membership is active and paid.");
+        } else if (trial.status === "PAYMENT_FAILED") {
+          setBlockedStatus("PAYMENT_FAILED");
+          setBlockedMessage("Your automatic renewal payment could not be processed.");
+        } else if (trialAutoPayActive && trialExpiryPassed) {
+          setBlockedStatus("RENEWAL_PENDING");
+          setBlockedMessage("Your free trial has ended and your automatic renewal is being processed.");
+        } else if (trial.autoPayCancelled && trialExpiryPassed) {
+          setBlockedStatus("TRIAL_EXPIRED");
+          setBlockedMessage("Your automatic renewal was cancelled. Please choose a plan to continue.");
+        } else if (trial.status === "TRIAL_ACTIVE" && !trialExpiryPassed) {
+          setBlockedStatus("TRIAL_ACTIVE");
+          setBlockedMessage("Your free trial is already active.");
+        } else {
+          setBlockedStatus(trial.status || "TRIAL_EXPIRED");
+          setBlockedMessage(trial.autoPayCancelled
+            ? "Your automatic renewal was cancelled. Please choose a plan to continue."
+            : "Your free trial has already been used. Please choose a Standard or Premium plan.");
+        }
       })
       .catch(() => {
         // Invalid/expired token — silently fall through to the normal entry requirements.
@@ -150,6 +185,41 @@ export default function TrialDetailsPage() {
       cancelled = true;
     };
   }, [directToken]);
+
+  // Polling for renewal status when renewal is pending
+  useEffect(() => {
+    const tokenToPoll = blockedAccessToken || directToken;
+    if (!isRenewalPending || !tokenToPoll) return;
+
+    let pollCount = 0;
+    const maxPolls = 24; // ~60 seconds at 2.5s interval
+    const interval = setInterval(() => {
+      pollCount++;
+      if (pollCount > maxPolls) {
+        clearInterval(interval);
+        return;
+      }
+      getTrialByToken(tokenToPoll)
+        .then((trialData) => {
+          if (trialData) {
+            setBlockedTrial(trialData);
+            if (trialData.paymentAmount != null) {
+              setBlockedStatus("ACTIVE");
+              clearInterval(interval);
+            } else if (trialData.status === "PAYMENT_FAILED") {
+              setBlockedStatus("PAYMENT_FAILED");
+              clearInterval(interval);
+            } else if (trialData.status === "TRIAL_EXPIRED" && trialData.autoPayCancelled) {
+              setBlockedStatus("TRIAL_EXPIRED");
+              clearInterval(interval);
+            }
+          }
+        })
+        .catch(() => {});
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isRenewalPending, blockedAccessToken, directToken]);
 
   async function handleConfirmCancelAutoPay() {
     if (cancelling || !blockedAccessToken) return;
@@ -237,9 +307,14 @@ export default function TrialDetailsPage() {
         setBlockedMessage(eligibility.message);
         setBlockedStatus(eligibility.status || "TRIAL_EXPIRED");
         setBlockedAccessToken(eligibility.accessToken || null);
-        if (eligibility.status === "TRIAL_ACTIVE" && eligibility.accessToken) {
+        if (eligibility.accessToken) {
           getTrialByToken(eligibility.accessToken)
-            .then(setBlockedTrial)
+            .then((trialData) => {
+              setBlockedTrial(trialData);
+              if (trialData.paymentAmount != null) {
+                setBlockedStatus("ACTIVE");
+              }
+            })
             .catch(() => {});
         }
         setSubmitting(false);
@@ -279,13 +354,119 @@ export default function TrialDetailsPage() {
   // this same plan (never the trial/subscription checkout), carrying planId forward and
   // prefilling whatever details they already typed so they don't re-enter them.
   function handleContinueToPaidPlans() {
-    if (blockedCustomer) {
-      updateCheckoutState({ customer: blockedCustomer });
+    const customerData = blockedCustomer || (blockedTrial ? {
+      firstName: blockedTrial.firstName,
+      lastName: blockedTrial.lastName,
+      email: blockedTrial.email,
+      mobileNumber: blockedTrial.mobileNumber,
+      countryPhoneCode: blockedTrial.countryPhoneCode,
+      countryRegion: blockedTrial.countryRegion,
+    } : customer);
+
+    if (customerData) {
+      updateCheckoutState({ customer: customerData });
     }
-    navigate(`/checkout/duration?planId=${planId}&flow=paid`);
+    const targetPlanId = blockedTrial?.planId || planId || 2;
+    navigate(`/checkout/duration?planId=${targetPlanId}&flow=paid`);
   }
 
-  if (blockedMessage && blockedStatus === "TRIAL_ACTIVE") {
+  // CASE 3: Payment Succeeded / Membership Active
+  if (isPaidActive) {
+    return (
+      <CheckoutLayout>
+        <div className="container py-5 text-center" style={{ maxWidth: 540, margin: "0 auto" }}>
+          <h1 className="mb-3" style={{ fontSize: 28 }}>
+            🎉 Congratulations, {blockedTrial?.firstName || blockedCustomer?.firstName || "Member"}!
+          </h1>
+          <p className="text-muted mb-4">Your {blockedTrial?.planName || "Membership"} Plan is now active.</p>
+
+          <div className="text-start mb-4" style={{ border: "1px solid #eee", borderRadius: 10, padding: 24, background: "#fff" }}>
+            <p><strong>Plan:</strong> {blockedTrial?.planName || "Standard"}</p>
+            {blockedTrial?.trialExpiryDate && (
+              <p><strong>Trial Expired:</strong> {new Date(blockedTrial.trialExpiryDate).toLocaleString()}</p>
+            )}
+            {blockedTrial?.paymentDate && (
+              <p><strong>Payment Date:</strong> {new Date(blockedTrial.paymentDate).toLocaleString()}</p>
+            )}
+            {blockedTrial?.paymentAmount != null && (
+              <p><strong>Amount Paid:</strong> {blockedTrial.paymentCurrency} {blockedTrial.paymentAmount}</p>
+            )}
+            {blockedTrial?.stripeSubscriptionId && (
+              <p><strong>Subscription Reference:</strong> {blockedTrial.stripeSubscriptionId}</p>
+            )}
+            <p className="mb-0"><strong>Status:</strong> MEMBERSHIP ACTIVE / PAID</p>
+          </div>
+
+          <Link to="/" className="btn btn-primary px-4 py-2">
+            Back to Home
+          </Link>
+        </div>
+      </CheckoutLayout>
+    );
+  }
+
+  // CASE 1: AutoPay Enabled + Renewal Pending at expiry
+  if (isRenewalPending) {
+    return (
+      <CheckoutLayout>
+        <div className="container py-5 text-center" style={{ maxWidth: 540, margin: "0 auto" }}>
+          <div className="spinner-border text-primary mb-3" role="status" style={{ width: "2.75rem", height: "2.75rem" }}>
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <h2 className="mb-2" style={{ fontSize: 24, fontWeight: 600 }}>
+            Your membership is being activated
+          </h2>
+          <p className="text-muted mb-4">
+            Your free trial has ended and your automatic renewal is being processed. Please check again shortly.
+          </p>
+          <button
+            type="button"
+            className="btn btn-outline-primary px-4 py-2"
+            onClick={() => {
+              if (blockedAccessToken) {
+                getTrialByToken(blockedAccessToken).then((data) => {
+                  setBlockedTrial(data);
+                  if (data.paymentAmount != null) {
+                    setBlockedStatus("ACTIVE");
+                  }
+                });
+              }
+            }}
+          >
+            Check Status
+          </button>
+        </div>
+      </CheckoutLayout>
+    );
+  }
+
+  // CASE 4: Renewal Payment Failed
+  if (isPaymentFailed) {
+    return (
+      <CheckoutLayout>
+        <div className="container py-5" style={{ maxWidth: 640 }}>
+          <div className="alert alert-danger" style={{ padding: 22 }}>
+            <h2 className="mb-2" style={{ fontSize: 20 }}>
+              Renewal Payment Failed
+            </h2>
+            <p className="mb-3">
+              {blockedMessage || "Your automatic renewal payment could not be processed with your saved payment method. Please complete payment to continue your membership."}
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleContinueToPaidPlans}
+            >
+              Pay Now
+            </button>
+          </div>
+        </div>
+      </CheckoutLayout>
+    );
+  }
+
+  // Existing Active Free Trial
+  if (isTrialActive) {
     return (
       <CheckoutLayout>
       <div className="container py-5" style={{ maxWidth: 680 }}>
@@ -379,35 +560,8 @@ export default function TrialDetailsPage() {
     );
   }
 
-  if (!planId || !durationId) {
-    return (
-      <CheckoutLayout>
-        <div className="container py-5 text-center">
-          <p>Missing plan or duration selection. Please start from the pricing section.</p>
-          <Link to="/">Back to Home</Link>
-        </div>
-      </CheckoutLayout>
-    );
-  }
-
-  if (blockedMessage && blockedStatus === "ACTIVE") {
-    return (
-      <CheckoutLayout>
-      <div className="container py-5" style={{ maxWidth: 640 }}>
-        <div className="alert alert-success">
-          <h2 className="mb-2" style={{ fontSize: 20 }}>
-            🎉 Your Membership is Already Active
-          </h2>
-          <p className="mb-0">
-            {blockedMessage} No further payment is needed — your subscription continues automatically.
-          </p>
-        </div>
-      </div>
-      </CheckoutLayout>
-    );
-  }
-
-  if (blockedMessage) {
+  // CASE 2: AutoPay Cancelled + Expired (or general expired)
+  if (blockedMessage || blockedStatus === "TRIAL_EXPIRED" || (blockedTrial?.autoPayCancelled && isExpiryPassed)) {
     return (
       <CheckoutLayout>
       <div className="container py-5" style={{ maxWidth: 640 }}>
@@ -415,7 +569,11 @@ export default function TrialDetailsPage() {
           <h2 className="mb-2" style={{ fontSize: 20 }}>
             Your Free Trial Has Expired
           </h2>
-          <p className="mb-3">{blockedMessage}</p>
+          <p className="mb-3">
+            {blockedTrial?.autoPayCancelled
+              ? "Your automatic renewal was cancelled. Please choose a plan to continue."
+              : blockedMessage || "Your free trial has already been used. Please choose a Standard or Premium plan."}
+          </p>
           <button
             type="button"
             className="btn"
@@ -426,6 +584,17 @@ export default function TrialDetailsPage() {
           </button>
         </div>
       </div>
+      </CheckoutLayout>
+    );
+  }
+
+  if ((!planId || !durationId) && !tokenParam) {
+    return (
+      <CheckoutLayout>
+        <div className="container py-5 text-center">
+          <p>Missing plan or duration selection. Please start from the pricing section.</p>
+          <Link to="/">Back to Home</Link>
+        </div>
       </CheckoutLayout>
     );
   }

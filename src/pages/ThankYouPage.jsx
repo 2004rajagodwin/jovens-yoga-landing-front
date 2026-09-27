@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { getTrialByToken } from "../services/trialApi.js";
 import { getOrder } from "../services/orderApi.js";
 import { cancelTrialAutoPay } from "../services/paymentApi.js";
@@ -16,12 +16,18 @@ import { ApiError } from "../services/apiClient.js";
  */
 export default function ThankYouPage() {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const type = searchParams.get("type");
   const token = searchParams.get("token");
 
-  const [status, setStatus] = useState("loading"); // loading | success | not-found
-  const [trial, setTrial] = useState(null);
-  const [order, setOrder] = useState(null);
+  const [status, setStatus] = useState(() => {
+    if (type === "trial" && location.state?.trial?.paymentAmount != null) return "success";
+    if (type === "trial" && location.state?.trial?.status === "TRIAL_ACTIVE") return "success";
+    if (type === "paid" && location.state?.order?.status === "PAID") return "success";
+    return "loading";
+  });
+  const [trial, setTrial] = useState(() => (type === "trial" ? location.state?.trial || null : null));
+  const [order, setOrder] = useState(() => (type === "paid" ? location.state?.order || null : null));
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -34,8 +40,12 @@ export default function ThankYouPage() {
         if (type === "trial") {
           const data = await getTrialByToken(token);
           if (cancelled) return;
-          const converted = data.status === "TRIAL_EXPIRED" && data.paymentAmount != null;
-          if (data.status !== "TRIAL_ACTIVE" && !converted) {
+          const converted = data.paymentAmount != null;
+          const isExpiryPassed = data.trialExpiryDate && new Date(data.trialExpiryDate) <= new Date();
+          const isAutoPayEnabled = !data.autoPayCancelled && Boolean(data.stripeSubscriptionId);
+          const isRenewalPending = isAutoPayEnabled && isExpiryPassed && !converted && data.status !== "PAYMENT_FAILED";
+
+          if (data.status !== "TRIAL_ACTIVE" && !converted && !isRenewalPending) {
             setStatus("not-found");
             return;
           }
@@ -64,6 +74,38 @@ export default function ThankYouPage() {
       cancelled = true;
     };
   }, [type, searchParams, token]);
+
+  // If renewal is pending, poll for conversion
+  useEffect(() => {
+    if (type !== "trial" || !token || !trial) return;
+    const isExpiryPassed = trial.trialExpiryDate && new Date(trial.trialExpiryDate) <= new Date();
+    const isAutoPayEnabled = !trial.autoPayCancelled && Boolean(trial.stripeSubscriptionId);
+    const isRenewalPending = isAutoPayEnabled && isExpiryPassed && trial.paymentAmount == null && trial.status !== "PAYMENT_FAILED";
+
+    if (!isRenewalPending) return;
+
+    let pollCount = 0;
+    const maxPolls = 24; // ~60 seconds
+    const interval = setInterval(() => {
+      pollCount++;
+      if (pollCount > maxPolls) {
+        clearInterval(interval);
+        return;
+      }
+      getTrialByToken(token)
+        .then((data) => {
+          if (data) {
+            setTrial(data);
+            if (data.paymentAmount != null || data.status === "PAYMENT_FAILED" || (data.status === "TRIAL_EXPIRED" && data.autoPayCancelled)) {
+              clearInterval(interval);
+            }
+          }
+        })
+        .catch(() => {});
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [type, token, trial]);
 
   async function handleConfirmCancelAutoPay() {
     if (cancelling || !token) return;
@@ -110,10 +152,8 @@ export default function ThankYouPage() {
     );
   }
 
-  // Trial that has since converted to a paid subscription (post-AutoPay) — distinct state,
-  // distinct content from both the free-trial-active card below and the one-time paid-order
-  // card further down. Left as its existing plain layout, only now inside CheckoutLayout.
-  if (trial && trial.status === "TRIAL_EXPIRED" && trial.paymentAmount != null) {
+  // Trial that has since converted to a paid subscription (post-AutoPay)
+  if (trial && trial.paymentAmount != null) {
     return (
       <CheckoutLayout>
         <div className="container py-5 text-center" style={{ maxWidth: 520, margin: "0 auto" }}>
@@ -139,9 +179,87 @@ export default function ThankYouPage() {
               <strong>Subscription Reference:</strong> {trial.stripeSubscriptionId}
             </p>
             <p className="mb-0">
-              <strong>Status:</strong> ACTIVE / PAID
+              <strong>Status:</strong> PAID / ACTIVE
             </p>
           </div>
+        </div>
+      </CheckoutLayout>
+    );
+  }
+
+  // Renewal Payment Failed
+  if (trial && trial.status === "PAYMENT_FAILED") {
+    return (
+      <CheckoutLayout>
+        <div className="container py-5" style={{ maxWidth: 640, margin: "0 auto" }}>
+          <div className="alert alert-danger" style={{ padding: 22, borderRadius: 10 }}>
+            <h2 className="mb-2" style={{ fontSize: 20, fontWeight: 600 }}>
+              Renewal Payment Failed
+            </h2>
+            <p className="mb-3">
+              Your automatic renewal payment could not be processed with your saved payment method. Please complete payment to continue your membership.
+            </p>
+            <Link
+              to={`/checkout/duration?planId=${trial.planId || 2}&flow=paid`}
+              className="btn btn-primary"
+            >
+              Pay Now
+            </Link>
+          </div>
+        </div>
+      </CheckoutLayout>
+    );
+  }
+
+  // AutoPay Cancelled and Trial Expired
+  if (trial && trial.autoPayCancelled && trial.trialExpiryDate && new Date(trial.trialExpiryDate) <= new Date() && trial.paymentAmount == null) {
+    return (
+      <CheckoutLayout>
+        <div className="container py-5 text-center" style={{ maxWidth: 540, margin: "0 auto" }}>
+          <h2 className="mb-2" style={{ fontSize: 24, fontWeight: 600 }}>
+            Your Free Trial Has Ended
+          </h2>
+          <p className="text-muted mb-4">
+            Your AutoPay was cancelled and your free trial has now expired. Choose a plan to continue your practice.
+          </p>
+          <Link
+            to={`/checkout/duration?planId=${trial.planId || 2}&flow=paid`}
+            className="btn btn-primary px-4 py-2"
+          >
+            Pay Now
+          </Link>
+        </div>
+      </CheckoutLayout>
+    );
+  }
+
+  // Renewal in progress
+  if (trial && !trial.autoPayCancelled && trial.stripeSubscriptionId && trial.trialExpiryDate && new Date(trial.trialExpiryDate) <= new Date() && trial.paymentAmount == null && trial.status !== "PAYMENT_FAILED") {
+    return (
+      <CheckoutLayout>
+        <div className="container py-5 text-center" style={{ maxWidth: 540, margin: "0 auto" }}>
+          <div className="spinner-border text-primary mb-3" role="status" style={{ width: "2.75rem", height: "2.75rem" }}>
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <h2 className="mb-2" style={{ fontSize: 24, fontWeight: 600 }}>
+            Your membership is being activated
+          </h2>
+          <p className="text-muted mb-4">
+            Your free trial has ended and your automatic renewal is being processed. Please check again shortly.
+          </p>
+          <button
+            type="button"
+            className="btn btn-outline-primary px-4 py-2"
+            onClick={() => {
+              if (token) {
+                getTrialByToken(token).then((data) => {
+                  if (data) setTrial(data);
+                }).catch(() => {});
+              }
+            }}
+          >
+            Check Status
+          </button>
         </div>
       </CheckoutLayout>
     );
@@ -170,7 +288,7 @@ export default function ThankYouPage() {
               </div>
             </div>
             <h1>Congratulations, {trial.firstName}!</h1>
-            <p className="thankyou-subtitle">Your {trial.planName} 5-Day Free Trial is Active.</p>
+            <p className="thankyou-subtitle">Your {trial.planName} Free Trial is Active.</p>
             <p className="thankyou-tagline">Welcome to your yoga journey. We&rsquo;re excited to have you with us!</p>
           </div>
 
@@ -180,10 +298,17 @@ export default function ThankYouPage() {
                 <h2 className="thankyou-card-title">Trial Details</h2>
                 <p className="thankyou-card-subtitle">Here&rsquo;s your plan information</p>
               </div>
-              <span className="thankyou-status-pill">
-                <span className="thankyou-status-dot" aria-hidden="true"></span>
-                FREE TRIAL ACTIVE
-              </span>
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <span className="thankyou-status-pill">
+                  <span className="thankyou-status-dot" aria-hidden="true"></span>
+                  FREE TRIAL ACTIVE
+                </span>
+                {trial.autoPayCancelled && (
+                  <span className="badge bg-warning text-dark px-2 py-1" style={{ fontSize: "0.8rem", fontWeight: 600 }}>
+                    AutoPay CANCELLED
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="thankyou-rows">
@@ -224,17 +349,30 @@ export default function ThankYouPage() {
                   </span>
                 </div>
               )}
+              <div className="thankyou-row">
+                <span className="thankyou-row-label">AutoPay Status</span>
+                <span className="thankyou-row-value">
+                  {trial.autoPayCancelled ? (
+                    <span className="text-warning fw-semibold">CANCELLED</span>
+                  ) : (
+                    <span className="text-success fw-semibold">ENABLED</span>
+                  )}
+                </span>
+              </div>
             </div>
 
             <div className="thankyou-billing-note">
               <span className="thankyou-billing-icon" aria-hidden="true">
-                <i className="bi bi-calendar-check" aria-hidden="true"></i>
+                <i className={`bi ${trial.autoPayCancelled ? "bi-info-circle text-warning" : "bi-calendar-check"}`} aria-hidden="true"></i>
               </span>
               <p>
-                <strong>Your 5-day free trial is now active.</strong>
+                <strong>Your free trial is active until {new Date(trial.trialExpiryDate).toLocaleString()}.</strong>
                 <br />
-                You won&rsquo;t be charged today. Your saved payment method will be automatically charged
-                according to your selected plan after the trial ends.
+                {trial.autoPayCancelled ? (
+                  "Your automatic renewal has been cancelled. Your trial continues until expiry and you will not be charged."
+                ) : (
+                  "You won’t be charged today. Your saved payment method will be automatically charged according to your selected plan after the trial ends."
+                )}
               </p>
             </div>
 
@@ -242,7 +380,7 @@ export default function ThankYouPage() {
               <Link to={`/trial/details?token=${encodeURIComponent(token)}`} className="checkout-back-link">
                 <i className="bi bi-arrow-left"></i> Back
               </Link>
-              {/* {!trial.autoPayCancelled && (
+              {!trial.autoPayCancelled && (
                 <button
                   type="button"
                   className="btn btn-outline-danger"
@@ -251,7 +389,7 @@ export default function ThankYouPage() {
                 >
                   Cancel Subscription
                 </button>
-              )} */}
+              )}
             </div>
           </div>
 

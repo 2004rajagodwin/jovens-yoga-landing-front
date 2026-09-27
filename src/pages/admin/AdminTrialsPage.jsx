@@ -5,10 +5,18 @@ import StatusBadge from "../../components/admin/StatusBadge.jsx";
 import { TableSkeleton, EmptyState, ErrorState } from "../../components/admin/PageStates.jsx";
 import { listTrials } from "../../services/adminApi.js";
 
-const STATUSES = ["", "TRIAL_PENDING_PAYMENT", "TRIAL_ACTIVE", "TRIAL_EXPIRED", "PAYMENT_FAILED", "CANCELLED"];
+const FILTER_OPTIONS = [
+  { value: "ALL", label: "All" },
+  { value: "AUTOPAY_ACTIVE", label: "AutoPay Active" },
+  { value: "AUTOPAY_CANCELLED", label: "AutoPay Cancelled" },
+  { value: "TRIAL_ACTIVE", label: "Trial Active" },
+  { value: "TRIAL_EXPIRED", label: "Trial Expired" },
+  { value: "PAYMENT_FAILED", label: "Payment Failed" },
+  { value: "PAID_ACTIVE", label: "Paid / Active" },
+];
 
 export default function AdminTrialsPage() {
-  const [statusFilter, setStatusFilter] = useState("");
+  const [filter, setFilter] = useState("ALL");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [data, setData] = useState({ content: [], totalPages: 0 });
@@ -16,7 +24,7 @@ export default function AdminTrialsPage() {
 
   function load() {
     setLoadStatus("loading");
-    listTrials({ status: statusFilter || undefined, search, page, size: 20 })
+    listTrials({ filter: filter === "ALL" ? undefined : filter, search, page, size: 20 })
       .then((res) => {
         setData(res);
         setLoadStatus("success");
@@ -24,14 +32,14 @@ export default function AdminTrialsPage() {
       .catch(() => setLoadStatus("error"));
   }
 
-  useEffect(load, [statusFilter, search, page]);
+  useEffect(load, [filter, search, page]);
 
   return (
     <AdminLayout>
       <div className="jy-page-header">
         <div>
           <h1 className="jy-page-title">Trials</h1>
-          <p className="jy-page-subtitle">Free trial activations and their status</p>
+          <p className="jy-page-subtitle">Free trial activations, AutoPay status, and direct payment recovery</p>
         </div>
       </div>
 
@@ -51,15 +59,15 @@ export default function AdminTrialsPage() {
         </div>
         <select
           className="jy-select"
-          value={statusFilter}
+          value={filter}
           onChange={(e) => {
             setPage(0);
-            setStatusFilter(e.target.value);
+            setFilter(e.target.value);
           }}
         >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>
-              {s || "All statuses"}
+          {FILTER_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
             </option>
           ))}
         </select>
@@ -70,7 +78,7 @@ export default function AdminTrialsPage() {
         {loadStatus === "error" && <ErrorState message="Unable to load trials." onRetry={load} />}
 
         {loadStatus === "success" && data.content.length === 0 && (
-          <EmptyState icon="bi-hourglass" title="No trials yet" description="Free trial activations will appear here." />
+          <EmptyState icon="bi-hourglass" title="No trials found" description="No trial records match the selected filter." />
         )}
 
         {loadStatus === "success" && data.content.length > 0 && (
@@ -79,14 +87,13 @@ export default function AdminTrialsPage() {
               <table className="jy-table">
                 <thead>
                   <tr>
-                    <th>Customer</th>
-                    <th>Plan</th>
-                    <th>Slot</th>
-                    <th>Start</th>
-                    <th>Expiry</th>
-                    <th>Status</th>
-                    <th>Last Reminder Day</th>
-                    <th>Stripe Customer</th>
+                    <th>User ID / Customer</th>
+                    <th>Plan & Duration</th>
+                    <th>Dates</th>
+                    <th>AutoPay Status</th>
+                    <th>Trial Status</th>
+                    <th>Payment</th>
+                    <th>Membership</th>
                     <th>Stripe Subscription</th>
                   </tr>
                 </thead>
@@ -94,24 +101,49 @@ export default function AdminTrialsPage() {
                   {data.content.map((trial) => (
                     <tr key={trial.id}>
                       <td>
-                        <div style={{ fontWeight: 600 }}>{trial.customerName}</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {trial.customerName}{" "}
+                          <span className="jy-cell-muted" style={{ fontWeight: "normal", fontSize: 12 }}>
+                            (User #{trial.userId})
+                          </span>
+                        </div>
                         <div className="jy-cell-muted">{trial.email}</div>
+                        {trial.mobileNumber && (
+                          <div className="jy-cell-muted" style={{ fontSize: 11.5 }}>
+                            {trial.mobileNumber}
+                          </div>
+                        )}
                       </td>
                       <td>
-                        {trial.planName}
+                        <div style={{ fontWeight: 500 }}>{trial.planName}</div>
                         {trial.planDurationLabel && <div className="jy-cell-muted">{trial.planDurationLabel}</div>}
                       </td>
-                      <td className="jy-cell-muted">
-                        {trial.slotDate ? `${trial.slotLabel ? trial.slotLabel + " — " : ""}${new Date(trial.slotDate).toLocaleDateString()}` : "—"}
+                      <td className="jy-cell-muted" style={{ fontSize: 12 }}>
+                        <div>Start: {trial.trialStartDate ? new Date(trial.trialStartDate).toLocaleDateString() : "—"}</div>
+                        <div>Expiry: {trial.trialExpiryDate ? new Date(trial.trialExpiryDate).toLocaleDateString() : "—"}</div>
                       </td>
-                      <td className="jy-cell-muted">{trial.trialStartDate ? new Date(trial.trialStartDate).toLocaleDateString() : "—"}</td>
-                      <td className="jy-cell-muted">{trial.trialExpiryDate ? new Date(trial.trialExpiryDate).toLocaleDateString() : "—"}</td>
+                      <td>
+                        {trial.autoPayCancelled ? (
+                          <div>
+                            <StatusBadge status="CANCELLED" />
+                            {trial.autoPayCancelledAt && (
+                              <div className="jy-cell-muted" style={{ fontSize: 11, marginTop: 2 }}>
+                                {new Date(trial.autoPayCancelledAt).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <StatusBadge status={trial.autoPayStatus || "NONE"} />
+                        )}
+                      </td>
                       <td>
                         <StatusBadge status={trial.status} />
                       </td>
-                      <td className="jy-cell-muted">{trial.lastReminderDayIndex}</td>
-                      <td className="jy-cell-muted" style={{ fontFamily: "monospace", fontSize: 11.5 }}>
-                        {trial.stripeCustomerId || "—"}
+                      <td>
+                        <StatusBadge status={trial.paymentStatus || "PENDING"} />
+                      </td>
+                      <td>
+                        <StatusBadge status={trial.membershipStatus || "TRIAL"} />
                       </td>
                       <td className="jy-cell-muted" style={{ fontFamily: "monospace", fontSize: 11.5 }}>
                         {trial.stripeSubscriptionId || "—"}

@@ -72,8 +72,8 @@ export function getPayment(id) {
 }
 
 // --- Trials ---
-export function listTrials({ status, search, page = 0, size = 20 } = {}) {
-  return authedRequest(`/api/admin/trials${toQuery({ status, search, page, size })}`);
+export function listTrials({ filter, status, search, page = 0, size = 20 } = {}) {
+  return authedRequest(`/api/admin/trials${toQuery({ filter, status, search, page, size })}`);
 }
 export function getTrialAdmin(id) {
   return authedRequest(`/api/admin/trials/${id}`);

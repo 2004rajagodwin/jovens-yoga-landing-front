@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { getPlan } from "../../services/planApi.js";
-import { updateCheckoutState } from "../../services/checkoutState.js";
+import { getPricing } from "../../services/pricingApi.js";
+import { detectSupportedCountryName, SUPPORTED_COUNTRIES } from "../../lib/countryDetection.js";
+import { getCheckoutState, updateCheckoutState } from "../../services/checkoutState.js";
 import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 
 export default function DurationPage() {
@@ -12,6 +14,7 @@ export default function DurationPage() {
 
   const [plan, setPlan] = useState(null);
   const [status, setStatus] = useState("loading");
+  const [durationPricing, setDurationPricing] = useState({});
 
   useEffect(() => {
     if (!planId) {
@@ -19,9 +22,37 @@ export default function DurationPage() {
       return;
     }
     getPlan(planId)
-      .then((data) => {
+      .then(async (data) => {
         setPlan(data);
         setStatus("success");
+
+        try {
+          const checkoutState = getCheckoutState();
+          let countryName = checkoutState.customer?.countryRegion;
+          if (!countryName || !SUPPORTED_COUNTRIES[countryName]) {
+            countryName = await detectSupportedCountryName();
+          }
+          const countryInfo = SUPPORTED_COUNTRIES[countryName] || SUPPORTED_COUNTRIES["India"];
+          const isoCode = countryInfo.isoCode;
+
+          const pricingResults = {};
+          const activeDurations = (data.durations || []).filter((d) => d.active);
+          await Promise.all(
+            activeDurations.map(async (d) => {
+              try {
+                const res = await getPricing(d.id, isoCode);
+                if (res) {
+                  pricingResults[d.id] = res;
+                }
+              } catch {
+                // Ignore individual failure, fall back to duration price
+              }
+            })
+          );
+          setDurationPricing(pricingResults);
+        } catch {
+          // Ignore geo/pricing error, fall back to duration prices
+        }
       })
       .catch(() => setStatus("error"));
   }, [planId]);
@@ -31,13 +62,14 @@ export default function DurationPage() {
       navigate(`/trial/details?planId=${plan.id}&durationId=${duration.id}`);
       return;
     }
+    const pricing = durationPricing[duration.id];
     updateCheckoutState({
       planId: plan.id,
       planName: plan.name,
       durationId: duration.id,
       durationLabel: duration.durationLabel,
-      price: duration.price,
-      currency: duration.currency,
+      price: pricing?.amount != null ? pricing.amount : duration.price,
+      currency: pricing?.currency || duration.currency,
     });
     navigate("/checkout/user-details");
   }
@@ -76,19 +108,25 @@ export default function DurationPage() {
         </p>
 
         <div className="d-flex flex-column gap-3">
-          {activeDurations.map((duration) => (
-            <button
-              key={duration.id}
-              type="button"
-              className="duration-option-card"
-              onClick={() => selectDuration(duration)}
-            >
-              <span>{duration.durationLabel}</span>
-              <strong>
-                {duration.currency} {duration.price}
-              </strong>
-            </button>
-          ))}
+          {activeDurations.map((duration) => {
+            const pricing = durationPricing[duration.id];
+            const displayCurrency = pricing?.symbol || pricing?.currency || duration.currency;
+            const displayAmount = pricing?.amount != null ? pricing.amount : duration.price;
+
+            return (
+              <button
+                key={duration.id}
+                type="button"
+                className="duration-option-card"
+                onClick={() => selectDuration(duration)}
+              >
+                <span>{duration.durationLabel}</span>
+                <strong>
+                  {displayCurrency} {displayAmount}
+                </strong>
+              </button>
+            );
+          })}
           {activeDurations.length === 0 && <p>No duration options are currently available for this plan.</p>}
         </div>
 
