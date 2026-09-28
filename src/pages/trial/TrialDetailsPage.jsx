@@ -8,9 +8,11 @@ import { getActiveSlots } from "../../services/slotApi.js";
 import { getPlan } from "../../services/planApi.js";
 import { ApiError } from "../../services/apiClient.js";
 import { updateCheckoutState } from "../../services/checkoutState.js";
-import { SUPPORTED_COUNTRIES, detectSupportedCountryName } from "../../lib/countryDetection.js";
+import { SUPPORTED_COUNTRIES, detectSupportedCountryName, getCountryAddressConfig } from "../../lib/countryDetection.js";
 import { getPricing } from "../../services/pricingApi.js";
 import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
+import SlotPickerModal from "../../components/SlotPickerModal.jsx";
+import { formatSlotSummary } from "../../lib/slotUtils.js";
 
 // Trial registration only supports these 5 countries/phone codes — a deliberately shorter
 // list than the shared COUNTRIES set (used elsewhere, e.g. the paid checkout flow) so that
@@ -32,7 +34,9 @@ const EMPTY_CUSTOMER = {
   countryRegion: "India",
   countryPhoneCode: "+91",
   mobileNumber: "",
-  address: "",
+  state: "",
+  city: "",
+  postalCode: "",
 };
 
 // Display-only formatting — the underlying currency/duration values always come straight
@@ -66,6 +70,7 @@ export default function TrialDetailsPage() {
   const [slots, setSlots] = useState([]);
   const [slotsStatus, setSlotsStatus] = useState("loading");
   const [selectedSlotId, setSelectedSlotId] = useState(null);
+  const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
 
   const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
   const [submitting, setSubmitting] = useState(false);
@@ -89,6 +94,7 @@ export default function TrialDetailsPage() {
   const isPaymentFailed = blockedStatus === "PAYMENT_FAILED" || blockedTrial?.status === "PAYMENT_FAILED";
   const isRenewalPending = blockedStatus === "RENEWAL_PENDING" || Boolean(isAutoPayEnabled && isExpiryPassed && !isPaidActive && !isPaymentFailed);
   const isTrialActive = blockedStatus === "TRIAL_ACTIVE" && !isExpiryPassed;
+  const addressConfig = getCountryAddressConfig(customer.countryRegion);
 
   // Holds the just-submitted "User Details" values while the OTP modal is open — nothing
   // below (eligibility check, trial creation) runs until OTP verification succeeds.
@@ -282,7 +288,23 @@ export default function TrialDetailsPage() {
   function handleSubmit(e) {
     e.preventDefault();
     if (!selectedSlotId) {
-      setErrorMessage("Please select a class slot before continuing.");
+      setErrorMessage("Please select a date and time slot.");
+      return;
+    }
+    if (!customer.state?.trim()) {
+      setErrorMessage(`Please enter your ${addressConfig.stateLabel.toLowerCase()}.`);
+      return;
+    }
+    if (!customer.city?.trim()) {
+      setErrorMessage("Please enter your city.");
+      return;
+    }
+    if (!customer.postalCode?.trim()) {
+      setErrorMessage(`Please enter your ${addressConfig.postalLabel}.`);
+      return;
+    }
+    if (!addressConfig.validatePostal(customer.postalCode)) {
+      setErrorMessage(`Please enter a valid ${addressConfig.postalLabel} (${addressConfig.postalHelp}).`);
       return;
     }
     setErrorMessage("");
@@ -343,6 +365,14 @@ export default function TrialDetailsPage() {
         // The exception path has no status/trialId — fall back to the expired-user
         // treatment (offers a way forward) rather than leaving the user stuck.
         setBlockedStatus("TRIAL_EXPIRED");
+      } else if (
+        err?.code === "SLOT_INACTIVE" ||
+        err?.code === "SLOT_UNAVAILABLE" ||
+        err?.message?.toLowerCase().includes("slot is no longer available")
+      ) {
+        setSelectedSlotId(null);
+        getActiveSlots().then((data) => setSlots(data || [])).catch(() => {});
+        setErrorMessage("This slot is no longer available. Please select another slot.");
       } else {
         setErrorMessage(err.message || "Something went wrong. Please try again.");
       }
@@ -727,41 +757,82 @@ export default function TrialDetailsPage() {
                 {/* <label className="form-label">Select your slot</label> */}
                 <div className="trial-input-wrap">
                   <i className="bi bi-calendar3 trial-input-icon" aria-hidden="true"></i>
-                  <select
-                    className="form-select trial-input"
-                    value={selectedSlotId ?? ""}
-                    onChange={(e) => setSelectedSlotId(Number(e.target.value))}
-                    disabled={slotsStatus !== "success" || slots.length === 0}
-                    required
+                  <button
+                    type="button"
+                    id="choose-slot-button"
+                    className="form-control trial-input text-start d-flex align-items-center justify-content-between"
+                    style={{
+                      cursor: slotsStatus === "loading" || slots.length === 0 ? "not-allowed" : "pointer",
+                      background: "#fff",
+                      color: selectedSlot ? "#111827" : "#6c757d",
+                      fontWeight: selectedSlot ? 500 : 400,
+                      userSelect: "none",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      minHeight: 46,
+                    }}
+                    onClick={() => {
+                      if (slotsStatus === "success" && slots.length > 0) {
+                        setIsSlotModalOpen(true);
+                      }
+                    }}
+                    disabled={slotsStatus === "loading" || slots.length === 0}
+                    aria-label="Choose a slot"
                   >
-                    <option value="" disabled>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", marginRight: 8 }}>
                       {slotsStatus === "loading"
                         ? "Loading slots…"
                         : slotsStatus === "error"
                         ? "Could not load slots"
                         : slots.length === 0
                         ? "No slots available"
+                        : selectedSlot
+                        ? formatSlotSummary(selectedSlot)
                         : "Choose a slot"}
-                    </option>
-                    {slots.map((slot) => (
-                      <option key={slot.id} value={slot.id}>
-                        {formatSlot(slot)}
-                      </option>
-                    ))}
-                  </select>
+                    </span>
+                    <i className="bi bi-chevron-down" style={{ fontSize: 13, color: "#9ca3af", flexShrink: 0 }}></i>
+                  </button>
+                </div>
+              </div>
+
+              <div className="col-md-6">
+                <div className="trial-input-wrap">
+                  <i className="bi bi-map trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    className="form-control trial-input"
+                    name="state"
+                    placeholder={addressConfig.statePlaceholder}
+                    value={customer.state}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="trial-input-wrap">
+                  <i className="bi bi-building trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    className="form-control trial-input"
+                    name="city"
+                    placeholder={addressConfig.cityPlaceholder}
+                    value={customer.city}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
                 </div>
               </div>
 
               <div className="col-12">
-                {/* <label className="form-label">Address</label> */}
                 <div className="trial-input-wrap">
-                  <i className="bi bi-house trial-input-icon" aria-hidden="true"></i>
+                  <i className="bi bi-pin-map trial-input-icon" aria-hidden="true"></i>
                   <input
                     className="form-control trial-input"
-                    name="address"
-                    placeholder="Your address"
-                    value={customer.address}
+                    name="postalCode"
+                    placeholder={addressConfig.postalPlaceholder}
+                    value={customer.postalCode}
                     onChange={handleCustomerFieldChange}
+                    required
                   />
                 </div>
               </div>
@@ -883,7 +954,7 @@ export default function TrialDetailsPage() {
                   }}
                 ></i>
 
-                {formatSlot(selectedSlot)}
+                {formatSlotSummary(selectedSlot)}
               </p>
             )}
           </div>
@@ -1071,6 +1142,19 @@ export default function TrialDetailsPage() {
           mobileNumber={pendingCustomer.mobileNumber}
           onVerified={handleOtpVerified}
           onCancel={() => setPendingCustomer(null)}
+        />
+      )}
+
+      {isSlotModalOpen && (
+        <SlotPickerModal
+          isOpen={isSlotModalOpen}
+          onClose={() => setIsSlotModalOpen(false)}
+          slots={slots}
+          selectedSlotId={selectedSlotId}
+          onSelectSlot={(slot) => {
+            setSelectedSlotId(slot.id);
+            setErrorMessage("");
+          }}
         />
       )}
     </div>

@@ -55,6 +55,19 @@ export function reorderPlans(orderedIds) {
   return authedRequest("/api/admin/plans/reorder", { method: "POST", body: { orderedIds } });
 }
 
+// --- Country Pricing ---
+export function listCountryPricingAdmin(countryCode) {
+  const query = countryCode ? `?country=${encodeURIComponent(countryCode)}` : "";
+  return authedRequest(`/api/admin/pricing${query}`);
+}
+export function updateCountryPricingAdmin(countryCode, payload) {
+  return authedRequest(`/api/admin/pricing/${encodeURIComponent(countryCode)}`, {
+    method: "PUT",
+    body: payload,
+  });
+}
+
+
 // --- Orders ---
 export function listOrders({ status, search, page = 0, size = 20 } = {}) {
   return authedRequest(`/api/admin/orders${toQuery({ status, search, page, size })}`);

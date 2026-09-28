@@ -27,3 +27,69 @@ export async function detectSupportedCountryName() {
     return DEFAULT_COUNTRY;
   }
 }
+
+export const COUNTRY_ADDRESS_CONFIG = {
+  India: {
+    stateLabel: "State",
+    statePlaceholder: "State",
+    cityLabel: "City",
+    cityPlaceholder: "City",
+    postalLabel: "PIN Code",
+    postalPlaceholder: "Enter PIN Code",
+    postalHelp: "6-digit PIN Code (e.g. 600001)",
+    validatePostal: (val) => /^[1-9]\d{5}$/.test((val || "").trim()),
+  },
+  "United States": {
+    stateLabel: "State",
+    statePlaceholder: "State",
+    cityLabel: "City",
+    cityPlaceholder: "City",
+    postalLabel: "ZIP Code",
+    postalPlaceholder: "Enter ZIP Code",
+    postalHelp: "5-digit ZIP Code (e.g. 90210)",
+    validatePostal: (val) => /^\d{5}(-\d{4})?$/.test((val || "").trim()),
+  },
+  "United Kingdom": {
+    stateLabel: "State / Region",
+    statePlaceholder: "State / Region",
+    cityLabel: "City",
+    cityPlaceholder: "City",
+    postalLabel: "Postcode",
+    postalPlaceholder: "Enter Postcode",
+    postalHelp: "UK Postcode (e.g. SW1A 1AA)",
+    validatePostal: (val) => /^[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}$/.test((val || "").trim()),
+  },
+  Canada: {
+    stateLabel: "Province",
+    statePlaceholder: "Province",
+    cityLabel: "City",
+    cityPlaceholder: "City",
+    postalLabel: "Postal Code",
+    postalPlaceholder: "Enter Postal Code",
+    postalHelp: "Canadian Postal Code (e.g. M5V 3A8)",
+    validatePostal: (val) => /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/.test((val || "").trim()),
+  },
+  Australia: {
+    stateLabel: "State",
+    statePlaceholder: "State",
+    cityLabel: "City",
+    cityPlaceholder: "City",
+    postalLabel: "Postcode",
+    postalPlaceholder: "Enter Postcode",
+    postalHelp: "4-digit Postcode (e.g. 2000)",
+    validatePostal: (val) => /^\d{4}$/.test((val || "").trim()),
+  },
+};
+
+export function getCountryAddressConfig(countryName) {
+  return COUNTRY_ADDRESS_CONFIG[countryName] || {
+    stateLabel: "State",
+    statePlaceholder: "State",
+    cityLabel: "City",
+    cityPlaceholder: "City",
+    postalLabel: "Postal Code",
+    postalPlaceholder: "Enter Postal Code",
+    postalHelp: "Postal Code",
+    validatePostal: (val) => (val || "").trim().length > 0,
+  };
+}

@@ -4,6 +4,7 @@ import ConfirmModal from "../../components/admin/ConfirmModal.jsx";
 import { TableSkeleton, EmptyState, ErrorState } from "../../components/admin/PageStates.jsx";
 import { showToast } from "../../components/admin/toast.js";
 import { listPlansAdmin, createPlan, updatePlan, setPlanActive, reorderPlans } from "../../services/adminApi.js";
+import CountryPricingManager from "../../components/admin/CountryPricingManager.jsx";
 
 const PLAN_TYPES = ["STANDARD", "PREMIUM"];
 const DURATION_UNITS = ["DAY", "MONTH", "YEAR"];
@@ -281,7 +282,9 @@ export default function AdminPlansPage() {
       )}
 
       {!editingPlan && (
-        <div className="jy-card">
+        <>
+          <CountryPricingManager />
+          <div className="jy-card">
           {status === "loading" && <div className="jy-card-pad"><TableSkeleton rows={4} /></div>}
           {status === "error" && <ErrorState message="Unable to load plans." onRetry={load} />}
           {status === "success" && plans.length === 0 && (
@@ -333,6 +336,7 @@ export default function AdminPlansPage() {
             </div>
           )}
         </div>
+        </>
       )}
 
       <ConfirmModal

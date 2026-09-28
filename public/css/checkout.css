@@ -589,3 +589,15 @@ background-color :#AAAEAA;
   border-color: #ff6b1b !important;
   box-shadow: 0 0 0 3px rgba(255, 107, 27, 0.12) !important;
 }
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
