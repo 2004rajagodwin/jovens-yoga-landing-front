@@ -104,7 +104,7 @@ export default function DurationPage() {
         </h1>
         <p className="text-muted mb-4">
           {plan.description}
-          {flow === "trial" && " Your 5-day free trial will start today; this is the plan you'll be billed after it ends."}
+          {flow === "trial" && ` Your ${plan.trialDurationDays || 7}-day free trial will start on your chosen class date; this is the plan you'll be billed after it ends.`}
         </p>
 
         <div className="d-flex flex-column gap-3">

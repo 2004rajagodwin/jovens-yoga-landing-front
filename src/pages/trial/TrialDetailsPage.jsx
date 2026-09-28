@@ -12,7 +12,7 @@ import { SUPPORTED_COUNTRIES, detectSupportedCountryName, getCountryAddressConfi
 import { getPricing } from "../../services/pricingApi.js";
 import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 import SlotPickerModal from "../../components/SlotPickerModal.jsx";
-import { formatSlotSummary } from "../../lib/slotUtils.js";
+import { formatSlotSummary, formatDateWithWeekday, formatSlotTimeRange } from "../../lib/slotUtils.js";
 
 // Trial registration only supports these 5 countries/phone codes — a deliberately shorter
 // list than the shared COUNTRIES set (used elsewhere, e.g. the paid checkout flow) so that
@@ -70,6 +70,7 @@ export default function TrialDetailsPage() {
   const [slots, setSlots] = useState([]);
   const [slotsStatus, setSlotsStatus] = useState("loading");
   const [selectedSlotId, setSelectedSlotId] = useState(null);
+  const [chosenSlot, setChosenSlot] = useState(null);
   const [isSlotModalOpen, setIsSlotModalOpen] = useState(false);
 
   const [customer, setCustomer] = useState(EMPTY_CUSTOMER);
@@ -287,8 +288,8 @@ export default function TrialDetailsPage() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!selectedSlotId) {
-      setErrorMessage("Please select a date and time slot.");
+    if (!selectedSlot && !selectedSlotId) {
+      setErrorMessage("Please select a batch and class date.");
       return;
     }
     if (!customer.state?.trim()) {
@@ -343,7 +344,15 @@ export default function TrialDetailsPage() {
         return;
       }
 
-      const trial = await createTrial(planId, durationId, selectedSlotId, values, verificationToken);
+      const trial = await createTrial(
+        planId,
+        durationId,
+        selectedSlot?.id || selectedSlotId || null,
+        values,
+        verificationToken,
+        selectedSlot?.batchId || null,
+        selectedSlot?.slotDate || selectedSlot?.date || null
+      );
       if (!trial?.accessToken) {
         setErrorMessage("Could not start checkout. Please try again.");
         setSubmitting(false);
@@ -630,15 +639,14 @@ export default function TrialDetailsPage() {
   }
 
   const selectedDuration = plan?.durations?.find((d) => d.id === durationId) || null;
-  const selectedSlot = slots.find((s) => s.id === selectedSlotId) || null;
+  const selectedSlot = chosenSlot || slots.find((s) => s.id === selectedSlotId) || null;
   // Prefer the backend-resolved (country-converted) price; fall back to the duration's own
   // native price only while that request hasn't resolved yet, or if it failed — never a
   // frontend-computed conversion.
   const displayPriceText = pricing ? pricing.formattedAmount : (selectedDuration ? formatPrice(selectedDuration.currency, selectedDuration.price) : "");
   // The Plan entity's own trialDurationDays is usually unset for Standard/Premium, in which
   // case the backend falls back to app.trial.default-duration-days (5) — mirrored here only
-  // as a display fallback, never sent to the backend, which always computes this itself.
-  const trialDays = plan?.trialDurationDays || 5;
+  const trialDays = plan?.trialDurationDays || 7;
 
   return (
     <CheckoutLayout>
@@ -647,7 +655,7 @@ export default function TrialDetailsPage() {
         {/* LEFT: User details form */}
         <div className="col-md-6">
     <div className="newtkfsl" style={{width:'95%'}} >
-      <div className="trial-eyebrow">FREE 5-DAY TRIAL</div>
+      <div className="trial-eyebrow">FREE {trialDays}-DAY TRIAL</div>
           <h1 className="mb-2" style={{ fontSize: 30, fontWeight: 700 }}>
             Start your <span style={{ color: "#ff6b1b" }}>free trial</span>
           </h1>
@@ -939,23 +947,25 @@ export default function TrialDetailsPage() {
             </p>
 
             {selectedSlot && (
-              <p
-                className="mb-0"
+              <div
+                className="mt-2 p-2 rounded"
                 style={{
-                  fontSize: 15,
-                  lineHeight: 1.5,
+                  background: "#fff8f3",
+                  border: "1px solid #ffd8bf",
+                  fontSize: 13,
                 }}
               >
-                <i
-                  className="bi bi-clock"
-                  style={{
-                    color: "#ff6b1b",
-                    marginRight: 7,
-                  }}
-                ></i>
-
-                {formatSlotSummary(selectedSlot)}
-              </p>
+                <div style={{ color: "#9a3412", fontWeight: 600 }}>Selected Class:</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 4 }}>
+                  {selectedSlot.batchName || selectedSlot.label || "Class Batch"}
+                </div>
+                <div>
+                  <strong>Date:</strong> {formatDateWithWeekday(selectedSlot.slotDate)}
+                </div>
+                <div>
+                  <strong>Time:</strong> {formatSlotTimeRange(selectedSlot.startTime || selectedSlot.slotStartTime, selectedSlot.endTime || selectedSlot.slotEndTime)}
+                </div>
+              </div>
             )}
           </div>
 
@@ -1150,9 +1160,11 @@ export default function TrialDetailsPage() {
           isOpen={isSlotModalOpen}
           onClose={() => setIsSlotModalOpen(false)}
           slots={slots}
+          selectedSlot={selectedSlot}
           selectedSlotId={selectedSlotId}
           onSelectSlot={(slot) => {
-            setSelectedSlotId(slot.id);
+            setChosenSlot(slot);
+            setSelectedSlotId(slot.id || null);
             setErrorMessage("");
           }}
         />

@@ -112,6 +112,37 @@ export function deleteSlot(id) {
   return authedRequest(`/api/admin/slots/${id}`, { method: "DELETE" });
 }
 
+// --- Batches ---
+export function listBatchesAdmin() {
+  return authedRequest("/api/admin/batches");
+}
+export function getBatchAdmin(id) {
+  return authedRequest(`/api/admin/batches/${id}`);
+}
+export function createBatchAdmin(payload) {
+  return authedRequest("/api/admin/batches", { method: "POST", body: payload });
+}
+export function updateBatchAdmin(id, payload) {
+  return authedRequest(`/api/admin/batches/${id}`, { method: "PUT", body: payload });
+}
+export function setBatchActiveAdmin(id, active) {
+  return authedRequest(`/api/admin/batches/${id}/active`, { method: "PATCH", body: { active } });
+}
+export function deleteBatchAdmin(id) {
+  return authedRequest(`/api/admin/batches/${id}`, { method: "DELETE" });
+}
+
+// --- System Settings (Booking Window) ---
+export function getBookingWindowAdmin() {
+  return authedRequest("/api/admin/settings/booking-window");
+}
+export function updateBookingWindowAdmin(bookingWindowWeeks) {
+  return authedRequest("/api/admin/settings/booking-window", {
+    method: "PUT",
+    body: { bookingWindowWeeks },
+  });
+}
+
 // --- Notifications ---
 export function listNotifications({ status, channel, page = 0, size = 20 } = {}) {
   return authedRequest(`/api/admin/notifications${toQuery({ status, channel, page, size })}`);

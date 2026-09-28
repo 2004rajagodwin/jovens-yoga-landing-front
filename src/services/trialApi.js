@@ -7,10 +7,20 @@ export function checkTrialEligibility(email, mobileNumber) {
   });
 }
 
-export function createTrial(planId, planDurationId, slotId, customer, otpToken) {
+export function createTrial(planId, planDurationId, slotId, customer, otpToken, batchId = null, slotDate = null) {
+  const body = {
+    planId,
+    planDurationId,
+    slotId: slotId || null,
+    customer,
+    otpToken,
+  };
+  if (batchId) body.batchId = batchId;
+  if (slotDate) body.slotDate = slotDate;
+
   return apiRequest("/api/trials", {
     method: "POST",
-    body: { planId, planDurationId, slotId, customer, otpToken },
+    body,
   });
 }
 

@@ -1,102 +1,240 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   MONTH_NAMES,
-  MONTH_SHORT,
   WEEKDAY_SHORT,
   parseDateParts,
   formatDateDisplay,
-  formatDateWithWeekday,
   formatSlotTimeRange,
-  groupSlotsByDate,
 } from "../lib/slotUtils.js";
+import { getActiveBatches, getBookingWindow } from "../services/slotApi.js";
 
 /**
- * Interactive Calendar & Date-Specific Time Slot Picker Modal.
+ * JOVENS YOGA – SLOT PICKER V2
+ * Batch-First Selection + Date Calendar + Admin-Controlled Booking Window
+ * (Recurring Daily Batch Availability Architecture)
  *
- * Requirements fulfilled:
- * - Admin slot data is the source of truth (only active slots shown).
- * - Dates with >= 1 active slot are selectable; others disabled.
- * - Multi-month navigation across available slot range.
- * - Timezone-safe date rendering (no UTC shift).
- * - Date selection reveals available batches/time cards.
- * - Mobile and desktop responsive layouts.
+ * Flow:
+ * 1. Customer selects Batch on the LEFT SIDE.
+ * 2. Calendar on the RIGHT SIDE shows all dates inside the booking window available for that batch.
+ * 3. Customer selects an available Date.
+ * 4. Switching batch retains the selected date if inside booking window.
+ * 5. Customer clicks "Confirm Slot".
  */
 export default function SlotPickerModal({
   isOpen,
   onClose,
   slots = [],
+  selectedSlot = null,
   selectedSlotId = null,
   onSelectSlot,
 }) {
-  // Group active slots by date (YYYY-MM-DD)
-  const slotsByDate = useMemo(() => groupSlotsByDate(slots), [slots]);
-  const availableDates = useMemo(() => Object.keys(slotsByDate).sort(), [slotsByDate]);
+  const [batches, setBatches] = useState([]);
+  const [batchesStatus, setBatchesStatus] = useState("loading");
+  const [bookingWindowWeeks, setBookingWindowWeeks] = useState(2);
 
-  // Determine navigation boundary from available dates
-  const { minYearMonth, maxYearMonth, initialYear, initialMonth } = useMemo(() => {
-    const now = new Date();
-    let minYM = now.getFullYear() * 12 + now.getMonth();
-    let maxYM = minYM + 2; // default 2 months window
-    let initY = now.getFullYear();
-    let initM = now.getMonth();
-
-    if (availableDates.length > 0) {
-      const firstParts = parseDateParts(availableDates[0]);
-      const lastParts = parseDateParts(availableDates[availableDates.length - 1]);
-      if (firstParts && lastParts) {
-        minYM = firstParts.year * 12 + (firstParts.month - 1);
-        maxYM = Math.max(minYM, lastParts.year * 12 + (lastParts.month - 1));
-        initY = firstParts.year;
-        initM = firstParts.month - 1;
-      }
-    }
-
-    return { minYearMonth: minYM, maxYearMonth: maxYM, initialYear: initY, initialMonth: initM };
-  }, [availableDates]);
-
-  const [viewYear, setViewYear] = useState(initialYear);
-  const [viewMonth, setViewMonth] = useState(initialMonth); // 0-11
+  const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [tempSelectedDate, setTempSelectedDate] = useState(null);
   const [tempSelectedSlot, setTempSelectedSlot] = useState(null);
 
-  // Sync state whenever modal opens or active slot changes
+  // Today's date string in local YYYY-MM-DD
+  const todayStr = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, []);
+
+  // Max selectable date based on configured booking window
+  const maxDateStr = useMemo(() => {
+    const now = new Date();
+    now.setDate(now.getDate() + bookingWindowWeeks * 7);
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }, [bookingWindowWeeks]);
+
+  // Load active batches and booking window on open
   useEffect(() => {
     if (!isOpen) return;
 
-    if (selectedSlotId) {
-      const matched = slots.find((s) => s.id === selectedSlotId && s.active);
-      if (matched && matched.slotDate) {
-        const parts = parseDateParts(matched.slotDate);
+    getActiveBatches()
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setBatches(list);
+        setBatchesStatus("success");
+      })
+      .catch(() => {
+        // Fallback: derive unique active batches from slots if endpoint fails
+        const map = {};
+        slots.forEach((s) => {
+          if (!s.active) return;
+          const bId = s.batchId || s.id;
+          const bName = s.batchName || s.label || "Regular Batch";
+          if (!map[bId]) {
+            map[bId] = {
+              id: bId,
+              name: bName,
+              startTime: s.startTime,
+              endTime: s.endTime,
+              active: true,
+            };
+          }
+        });
+        setBatches(Object.values(map));
+        setBatchesStatus("success");
+      });
+
+    getBookingWindow()
+      .then((res) => {
+        if (res && res.bookingWindowWeeks) {
+          setBookingWindowWeeks(res.bookingWindowWeeks);
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, slots]);
+
+  // Current calendar view month & year
+  const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
+  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
+
+  // Initialize selection when opening modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const now = new Date();
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
+
+    if (selectedSlot) {
+      setTempSelectedSlot(selectedSlot);
+      const slotDate = selectedSlot.slotDate || selectedSlot.date;
+      setTempSelectedDate(slotDate);
+      if (selectedSlot.batchId) {
+        setSelectedBatchId(selectedSlot.batchId);
+      }
+      if (slotDate) {
+        const parts = parseDateParts(slotDate);
         if (parts) {
           setViewYear(parts.year);
           setViewMonth(parts.month - 1);
-          setTempSelectedDate(matched.slotDate);
-          setTempSelectedSlot(matched);
-          return;
         }
       }
+      return;
     }
 
-    // Default to the first available date if present
-    if (availableDates.length > 0) {
-      const firstDate = availableDates[0];
-      const parts = parseDateParts(firstDate);
-      if (parts) {
-        setViewYear(parts.year);
-        setViewMonth(parts.month - 1);
-        setTempSelectedDate(firstDate);
-        const daySlots = slotsByDate[firstDate] || [];
-        setTempSelectedSlot(daySlots.length === 1 ? daySlots[0] : null);
+    if (selectedSlotId) {
+      const current = slots.find((s) => s.id === selectedSlotId && s.active);
+      if (current) {
+        setTempSelectedSlot(current);
+        const slotDate = current.slotDate || current.date;
+        setTempSelectedDate(slotDate);
+        const bId = current.batchId;
+        if (bId) {
+          setSelectedBatchId(bId);
+        } else if (batches.length > 0) {
+          const match = batches.find((b) => b.name === (current.batchName || current.label));
+          if (match) setSelectedBatchId(match.id);
+        }
+        if (slotDate) {
+          const parts = parseDateParts(slotDate);
+          if (parts) {
+            setViewYear(parts.year);
+            setViewMonth(parts.month - 1);
+          }
+        }
+        return;
       }
-    } else {
-      setViewYear(initialYear);
-      setViewMonth(initialMonth);
+    }
+
+    // Default to the first active batch if nothing selected yet
+    if (batches.length > 0 && !selectedBatchId) {
+      setSelectedBatchId(batches[0].id);
+    }
+  }, [isOpen, selectedSlot, selectedSlotId, slots, batches]);
+
+  // Auto-select first batch if none selected once batches load
+  useEffect(() => {
+    if (batches.length > 0 && !selectedBatchId) {
+      setSelectedBatchId(batches[0].id);
+    }
+  }, [batches, selectedBatchId]);
+
+  const activeBatch = useMemo(() => {
+    return batches.find((b) => b.id === selectedBatchId) || null;
+  }, [batches, selectedBatchId]);
+
+  // Handle batch selection change (Section 4):
+  // When customer changes batch (e.g. Morning -> Evening), calendar remains available.
+  // The selected date remains selected if it is still inside the booking window.
+  const handleSelectBatch = (batchId) => {
+    setSelectedBatchId(batchId);
+    const targetBatch = batches.find((b) => b.id === batchId);
+
+    if (!targetBatch || !targetBatch.active) {
       setTempSelectedDate(null);
       setTempSelectedSlot(null);
+      return;
     }
-  }, [isOpen, selectedSlotId, slots, availableDates, slotsByDate, initialYear, initialMonth]);
 
-  if (!isOpen) return null;
+    if (tempSelectedDate && tempSelectedDate >= todayStr && tempSelectedDate <= maxDateStr) {
+      const existingSlot = (slots || []).find(
+        (s) =>
+          (s.batchId === targetBatch.id || (s.batchName || s.label) === targetBatch.name) &&
+          (s.slotDate === tempSelectedDate || s.date === tempSelectedDate)
+      );
+
+      setTempSelectedSlot({
+        id: existingSlot?.id || null,
+        batchId: targetBatch.id,
+        batchName: targetBatch.name,
+        slotDate: tempSelectedDate,
+        date: tempSelectedDate,
+        startTime: targetBatch.startTime,
+        endTime: targetBatch.endTime,
+        label: targetBatch.name,
+        active: true,
+      });
+    }
+  };
+
+  // Handle date click on calendar (Section 3):
+  // Any date inside [todayStr, maxDateStr] is available for an active batch
+  const handleDateSelect = (dateStr) => {
+    if (!activeBatch || !activeBatch.active) return;
+    if (dateStr < todayStr || dateStr > maxDateStr) return;
+
+    const existingSlot = (slots || []).find(
+      (s) =>
+        (s.batchId === activeBatch.id || (s.batchName || s.label) === activeBatch.name) &&
+        (s.slotDate === dateStr || s.date === dateStr)
+    );
+
+    const slotObj = {
+      id: existingSlot?.id || null,
+      batchId: activeBatch.id,
+      batchName: activeBatch.name,
+      slotDate: dateStr,
+      date: dateStr,
+      startTime: activeBatch.startTime,
+      endTime: activeBatch.endTime,
+      label: activeBatch.name,
+      active: true,
+    };
+
+    setTempSelectedDate(dateStr);
+    setTempSelectedSlot(slotObj);
+  };
+
+  // Month navigation boundary
+  const { minYearMonth, maxYearMonth } = useMemo(() => {
+    const partsToday = parseDateParts(todayStr);
+    const partsMax = parseDateParts(maxDateStr);
+    const minYM = partsToday ? partsToday.year * 12 + (partsToday.month - 1) : 0;
+    const maxYM = partsMax ? partsMax.year * 12 + (partsMax.month - 1) : minYM + 2;
+    return { minYearMonth: minYM, maxYearMonth: maxYM };
+  }, [todayStr, maxDateStr]);
 
   const currentYearMonth = viewYear * 12 + viewMonth;
   const canGoPrev = currentYearMonth > minYearMonth;
@@ -122,29 +260,17 @@ export default function SlotPickerModal({
     }
   };
 
-  // Days calculation for the active viewMonth
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay(); // 0 = Sun, 1 = Mon ...
-
-  const handleDateSelect = (dateStr) => {
-    setTempSelectedDate(dateStr);
-    const daySlots = slotsByDate[dateStr] || [];
-    if (daySlots.length === 1) {
-      setTempSelectedSlot(daySlots[0]);
-    } else if (tempSelectedSlot && daySlots.some((s) => s.id === tempSelectedSlot.id)) {
-      // keep currently selected slot if it belongs to this date
-    } else {
-      setTempSelectedSlot(null);
-    }
-  };
-
   const handleConfirm = () => {
     if (!tempSelectedSlot) return;
     onSelectSlot(tempSelectedSlot);
     onClose();
   };
 
-  const dateSlots = tempSelectedDate ? slotsByDate[tempSelectedDate] || [] : [];
+  if (!isOpen) return null;
+
+  // Calendar days generation
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(viewYear, viewMonth, 1).getDay();
 
   return (
     <div
@@ -174,7 +300,7 @@ export default function SlotPickerModal({
           borderRadius: 16,
           boxShadow: "0 20px 50px rgba(0, 0, 0, 0.25)",
           width: "100%",
-          maxWidth: 680,
+          maxWidth: 780,
           padding: "24px 24px 20px",
           maxHeight: "92vh",
           display: "flex",
@@ -183,14 +309,14 @@ export default function SlotPickerModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
+        {/* Header */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: 18,
-            paddingBottom: 14,
+            marginBottom: 16,
+            paddingBottom: 12,
             borderBottom: "1px solid #f0ece6",
           }}
         >
@@ -211,7 +337,7 @@ export default function SlotPickerModal({
               Choose Class Slot
             </h2>
             <p style={{ margin: "3px 0 0", fontSize: 13, color: "#6b7280" }}>
-              Select an available date, then pick your preferred batch time.
+              Select your batch, then choose your class date.
             </p>
           </div>
           <button
@@ -233,7 +359,7 @@ export default function SlotPickerModal({
           </button>
         </div>
 
-        {/* Modal Body: Responsive 2-column or stacked layout */}
+        {/* Modal Body: 2-Column Responsive (Left: Batch Selection, Right: Calendar) */}
         <div
           style={{
             flex: 1,
@@ -242,23 +368,181 @@ export default function SlotPickerModal({
           }}
         >
           <div className="row g-4">
-            {/* Column 1: Calendar View */}
-            <div className="col-12 col-md-6">
+            {/* LEFT COLUMN: SELECT BATCH */}
+            <div className="col-12 col-md-5">
               <div
                 style={{
                   background: "#faf8f5",
                   border: "1px solid #ece5da",
                   borderRadius: 14,
                   padding: "16px 14px",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
-                {/* Month/Year Header with Navigation */}
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    color: "#9ca3af",
+                    marginBottom: 12,
+                  }}
+                >
+                  Step 1: Select Batch
+                </div>
+
+                {batchesStatus === "loading" && (
+                  <div className="text-center py-4 text-muted" style={{ fontSize: 13 }}>
+                    Loading batches…
+                  </div>
+                )}
+
+                {batchesStatus === "success" && batches.length === 0 && (
+                  <div className="text-center py-4 text-muted" style={{ fontSize: 13 }}>
+                    No active batches available.
+                  </div>
+                )}
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {batches.map((batch) => {
+                    const isSelected = selectedBatchId === batch.id;
+                    return (
+                      <div
+                        key={batch.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleSelectBatch(batch.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            handleSelectBatch(batch.id);
+                          }
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "12px 14px",
+                          borderRadius: 10,
+                          border: isSelected ? "2px solid #ff6b1b" : "1px solid #e5e7eb",
+                          background: isSelected ? "#fff9f5" : "#fff",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                          boxShadow: isSelected ? "0 2px 8px rgba(255, 107, 27, 0.12)" : "none",
+                        }}
+                      >
+                        {/* Radio indicator */}
+                        <div
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: "50%",
+                            border: isSelected ? "5px solid #ff6b1b" : "2px solid #d1d5db",
+                            marginRight: 12,
+                            flexShrink: 0,
+                            background: "#fff",
+                            transition: "all 0.15s ease",
+                          }}
+                        />
+
+                        {/* Batch Info */}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: 14, color: "#111827" }}>
+                            {batch.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: "#6b7280",
+                              marginTop: 2,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <i className="bi bi-clock" style={{ fontSize: 11 }}></i>
+                            {formatSlotTimeRange(batch.startTime, batch.endTime)}
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <span
+                            style={{
+                              background: "#ff6b1b",
+                              color: "#fff",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              padding: "2px 7px",
+                              borderRadius: 10,
+                            }}
+                          >
+                            Active
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "auto",
+                    paddingTop: 14,
+                    fontSize: 12,
+                    color: "#9ca3af",
+                    textAlign: "center",
+                  }}
+                >
+                  <i className="bi bi-info-circle me-1"></i>
+                  Booking window: {bookingWindowWeeks} week{bookingWindowWeeks > 1 ? "s" : ""}
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN: SELECT DATE (CALENDAR) */}
+            <div className="col-12 col-md-7">
+              <div
+                style={{
+                  background: "#fff",
+                  border: "1px solid #ece5da",
+                  borderRadius: 14,
+                  padding: "16px 16px",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 14,
+                    marginBottom: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      color: "#9ca3af",
+                    }}
+                  >
+                    Step 2: Select Date ({activeBatch ? activeBatch.name : "Choose Batch First"})
+                  </div>
+                </div>
+
+                {/* Calendar Month Navigation */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 12,
+                    padding: "4px 2px",
                   }}
                 >
                   <button
@@ -267,7 +551,7 @@ export default function SlotPickerModal({
                     onClick={handlePrevMonth}
                     disabled={!canGoPrev}
                     style={{
-                      background: canGoPrev ? "#fff" : "transparent",
+                      background: canGoPrev ? "#faf8f5" : "transparent",
                       border: canGoPrev ? "1px solid #e5e7eb" : "none",
                       borderRadius: 8,
                       width: 32,
@@ -292,7 +576,7 @@ export default function SlotPickerModal({
                     onClick={handleNextMonth}
                     disabled={!canGoNext}
                     style={{
-                      background: canGoNext ? "#fff" : "transparent",
+                      background: canGoNext ? "#faf8f5" : "transparent",
                       border: canGoNext ? "1px solid #e5e7eb" : "none",
                       borderRadius: 8,
                       width: 32,
@@ -326,7 +610,7 @@ export default function SlotPickerModal({
                         color: "#9ca3af",
                         textTransform: "uppercase",
                         letterSpacing: "0.5px",
-                        padding: "4px 0",
+                        padding: "3px 0",
                       }}
                     >
                       {day}
@@ -342,46 +626,61 @@ export default function SlotPickerModal({
                     gap: 4,
                   }}
                 >
-                  {/* Blank padding days */}
+                  {/* Padding empty days */}
                   {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                    <div key={`empty-${i}`} style={{ height: 36 }} />
+                    <div key={`empty-${i}`} style={{ height: 38 }} />
                   ))}
 
                   {/* Month days */}
                   {Array.from({ length: daysInMonth }).map((_, i) => {
                     const dayNum = i + 1;
                     const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
-                    const hasSlots = Boolean(slotsByDate[dateStr] && slotsByDate[dateStr].length > 0);
+
+                    const isPast = dateStr < todayStr;
+                    const isOutsideWindow = dateStr > maxDateStr;
+                    const isBatchActive = Boolean(activeBatch && activeBatch.active);
+                    const isSelectable = !isPast && !isOutsideWindow && isBatchActive;
                     const isSelected = tempSelectedDate === dateStr;
+                    const isToday = dateStr === todayStr;
 
                     return (
                       <button
                         key={dateStr}
                         type="button"
-                        onClick={() => hasSlots && handleDateSelect(dateStr)}
-                        disabled={!hasSlots}
-                        title={hasSlots ? `${slotsByDate[dateStr].length} slot(s) available` : "No slots available"}
+                        onClick={() => isSelectable && handleDateSelect(dateStr)}
+                        disabled={!isSelectable}
+                        title={
+                          isPast
+                            ? "Past date"
+                            : isOutsideWindow
+                            ? "Outside booking window"
+                            : isBatchActive
+                            ? `${activeBatch?.name || "Batch"} available`
+                            : "Batch unavailable"
+                        }
                         style={{
                           height: 38,
                           borderRadius: 8,
                           border: isSelected
                             ? "2px solid #ff6b1b"
-                            : hasSlots
+                            : isToday && isSelectable
+                            ? "1px solid #ff6b1b"
+                            : isSelectable
                             ? "1px solid #ffd8c2"
                             : "1px solid transparent",
                           background: isSelected
                             ? "#ff6b1b"
-                            : hasSlots
+                            : isSelectable
                             ? "#fff"
                             : "transparent",
                           color: isSelected
                             ? "#fff"
-                            : hasSlots
+                            : isSelectable
                             ? "#1f2937"
                             : "#d1d5db",
-                          fontWeight: isSelected ? 700 : hasSlots ? 600 : 400,
+                          fontWeight: isSelected ? 700 : isSelectable ? 600 : 400,
                           fontSize: 13,
-                          cursor: hasSlots ? "pointer" : "default",
+                          cursor: isSelectable ? "pointer" : "default",
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
@@ -392,8 +691,8 @@ export default function SlotPickerModal({
                         }}
                       >
                         <span>{dayNum}</span>
-                        {/* Dot indicator for available dates */}
-                        {hasSlots && (
+                        {/* Dot indicator for available batch date */}
+                        {isSelectable && (
                           <span
                             style={{
                               width: 4,
@@ -418,7 +717,7 @@ export default function SlotPickerModal({
                     gap: 16,
                     marginTop: 14,
                     paddingTop: 10,
-                    borderTop: "1px solid #ece5da",
+                    borderTop: "1px solid #f0ece6",
                     fontSize: 12,
                     color: "#6b7280",
                   }}
@@ -433,7 +732,7 @@ export default function SlotPickerModal({
                         display: "inline-block",
                       }}
                     />
-                    Available
+                    Available for {activeBatch?.name || "Batch"}
                   </span>
                   <span style={{ display: "flex", alignItems: "center", gap: 5 }}>
                     <span
@@ -450,141 +749,6 @@ export default function SlotPickerModal({
                 </div>
               </div>
             </div>
-
-            {/* Column 2: Date-Specific Time Slots Selection */}
-            <div className="col-12 col-md-6 d-flex flex-column">
-              <div
-                style={{
-                  background: "#fff",
-                  border: "1px solid #ece5da",
-                  borderRadius: 14,
-                  padding: "16px 18px",
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, textTransform: "uppercase", fontWeight: 700, color: "#9ca3af", letterSpacing: "0.5px" }}>
-                    Selected Date
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", marginTop: 2 }}>
-                    {tempSelectedDate ? formatDateWithWeekday(tempSelectedDate) : "None selected"}
-                  </div>
-                </div>
-
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#4b5563", marginBottom: 10 }}>
-                  Available Batch & Times
-                </div>
-
-                {/* Slots List for Selected Date */}
-                <div style={{ flex: 1, overflowY: "auto" }}>
-                  {!tempSelectedDate ? (
-                    <div
-                      style={{
-                        padding: "28px 16px",
-                        textAlign: "center",
-                        background: "#faf8f5",
-                        borderRadius: 10,
-                        border: "1px dashed #d1d5db",
-                        color: "#6b7280",
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      <i className="bi bi-calendar-event d-block mb-2" style={{ fontSize: 24, color: "#ff6b1b" }}></i>
-                      Please select an available date from the calendar to view batch times.
-                    </div>
-                  ) : dateSlots.length === 0 ? (
-                    <div
-                      style={{
-                        padding: "24px 16px",
-                        textAlign: "center",
-                        background: "#fef2f2",
-                        borderRadius: 10,
-                        color: "#991b1b",
-                        fontSize: 13,
-                      }}
-                    >
-                      No active slots available for this date.
-                    </div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {dateSlots.map((slot) => {
-                        const isSlotSelected = tempSelectedSlot?.id === slot.id;
-                        return (
-                          <div
-                            key={slot.id}
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => setTempSelectedSlot(slot)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                setTempSelectedSlot(slot);
-                              }
-                            }}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              padding: "12px 14px",
-                              borderRadius: 10,
-                              border: isSlotSelected ? "2px solid #ff6b1b" : "1px solid #e5e7eb",
-                              background: isSlotSelected ? "#fff9f5" : "#fff",
-                              cursor: "pointer",
-                              transition: "all 0.15s ease",
-                              boxShadow: isSlotSelected ? "0 2px 8px rgba(255, 107, 27, 0.15)" : "none",
-                            }}
-                          >
-                            {/* Custom Radio Circle */}
-                            <div
-                              style={{
-                                width: 18,
-                                height: 18,
-                                borderRadius: "50%",
-                                border: isSlotSelected ? "5px solid #ff6b1b" : "2px solid #d1d5db",
-                                marginRight: 12,
-                                flexShrink: 0,
-                                background: "#fff",
-                                transition: "all 0.15s ease",
-                              }}
-                            />
-
-                            {/* Batch Info */}
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 600, fontSize: 14, color: "#111827" }}>
-                                {slot.label || "Regular Batch"}
-                              </div>
-                              <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2, display: "flex", alignItems: "center", gap: 4 }}>
-                                <i className="bi bi-clock" style={{ fontSize: 11 }}></i>
-                                {formatSlotTimeRange(slot.startTime, slot.endTime)}
-                              </div>
-                            </div>
-
-                            {/* Selected Badge */}
-                            {isSlotSelected && (
-                              <span
-                                style={{
-                                  background: "#ff6b1b",
-                                  color: "#fff",
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  padding: "3px 8px",
-                                  borderRadius: 12,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                Selected
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -597,16 +761,23 @@ export default function SlotPickerModal({
             marginTop: 18,
             paddingTop: 14,
             borderTop: "1px solid #f0ece6",
+            flexWrap: "wrap",
+            gap: 12,
           }}
         >
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
+          <div style={{ fontSize: 13, color: "#6b7280", flex: 1, minWidth: 240 }}>
             {tempSelectedSlot ? (
-              <span style={{ color: "#111827", fontWeight: 500 }}>
-                {formatDateDisplay(tempSelectedSlot.slotDate)} • {tempSelectedSlot.label || "Batch"} •{" "}
+              <span style={{ color: "#111827", fontWeight: 600 }}>
+                Selected: {formatDateDisplay(tempSelectedSlot.slotDate || tempSelectedSlot.date)} •{" "}
+                {tempSelectedSlot.batchName || tempSelectedSlot.label || activeBatch?.name || "Batch"} •{" "}
                 {formatSlotTimeRange(tempSelectedSlot.startTime, tempSelectedSlot.endTime)}
               </span>
             ) : (
-              <span>No slot selected yet</span>
+              <span style={{ color: "#6b7280" }}>
+                {activeBatch
+                  ? `Please select an available date for ${activeBatch.name}.`
+                  : "Please select a batch and class date."}
+              </span>
             )}
           </div>
 
