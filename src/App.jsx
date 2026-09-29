@@ -24,6 +24,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/trial" element={<TrialDetailsPage />} />
         <Route path="/trial/details" element={<TrialDetailsPage />} />
         <Route path="/checkout/duration" element={<DurationPage />} />
         <Route path="/checkout/user-details" element={<UserDetailsPage />} />

@@ -27,6 +27,8 @@ export default function SlotPickerModal({
   selectedSlot = null,
   selectedSlotId = null,
   onSelectSlot,
+  customerLocation = null,
+  resolvedTimezone = null,
 }) {
   const [batches, setBatches] = useState([]);
   const [batchesStatus, setBatchesStatus] = useState("loading");
@@ -36,24 +38,38 @@ export default function SlotPickerModal({
   const [tempSelectedDate, setTempSelectedDate] = useState(null);
   const [tempSelectedSlot, setTempSelectedSlot] = useState(null);
 
-  // Today's date string in local YYYY-MM-DD
+  // Customer local today's date string in YYYY-MM-DD based on customer location timezone
   const todayStr = useMemo(() => {
+    const tz = resolvedTimezone?.timezoneId;
+    if (tz) {
+      try {
+        const formatter = new Intl.DateTimeFormat("en-CA", {
+          timeZone: tz,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        return formatter.format(new Date());
+      } catch {}
+    }
     const now = new Date();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, "0");
     const d = String(now.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
-  }, []);
+  }, [resolvedTimezone?.timezoneId]);
 
-  // Max selectable date based on configured booking window
+  // Max selectable date based on configured booking window starting from customerLocalToday
   const maxDateStr = useMemo(() => {
-    const now = new Date();
-    now.setDate(now.getDate() + bookingWindowWeeks * 7);
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, "0");
-    const d = String(now.getDate()).padStart(2, "0");
+    const parts = parseDateParts(todayStr);
+    if (!parts) return todayStr;
+    const base = new Date(parts.year, parts.month - 1, parts.day);
+    base.setDate(base.getDate() + bookingWindowWeeks * 7);
+    const y = base.getFullYear();
+    const m = String(base.getMonth() + 1).padStart(2, "0");
+    const d = String(base.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
-  }, [bookingWindowWeeks]);
+  }, [todayStr, bookingWindowWeeks]);
 
   // Load active batches and booking window on open
   useEffect(() => {
@@ -95,17 +111,33 @@ export default function SlotPickerModal({
       .catch(() => {});
   }, [isOpen, slots]);
 
-  // Current calendar view month & year
-  const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
-  const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
+  // Current calendar view month & year initialized from customerLocalToday
+  const [viewYear, setViewYear] = useState(() => {
+    const parts = parseDateParts(todayStr);
+    return parts ? parts.year : new Date().getFullYear();
+  });
+  const [viewMonth, setViewMonth] = useState(() => {
+    const parts = parseDateParts(todayStr);
+    return parts ? parts.month - 1 : new Date().getMonth();
+  });
+
+  const locationDisplayText = useMemo(() => {
+    const city = resolvedTimezone?.city || customerLocation?.city || "";
+    const state = resolvedTimezone?.state || customerLocation?.state || "";
+    const country = resolvedTimezone?.country || customerLocation?.countryRegion || "";
+    const parts = [city, state, country].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : "Customer Location";
+  }, [resolvedTimezone, customerLocation]);
 
   // Initialize selection when opening modal
   useEffect(() => {
     if (!isOpen) return;
 
-    const now = new Date();
-    setViewYear(now.getFullYear());
-    setViewMonth(now.getMonth());
+    const parts = parseDateParts(todayStr);
+    if (parts) {
+      setViewYear(parts.year);
+      setViewMonth(parts.month - 1);
+    }
 
     if (selectedSlot) {
       setTempSelectedSlot(selectedSlot);
@@ -262,7 +294,14 @@ export default function SlotPickerModal({
 
   const handleConfirm = () => {
     if (!tempSelectedSlot) return;
-    onSelectSlot(tempSelectedSlot);
+    const finalSlot = {
+      ...tempSelectedSlot,
+      timezoneId: resolvedTimezone?.timezoneId || null,
+      timezoneName: resolvedTimezone?.timezoneName || null,
+      utcOffset: resolvedTimezone?.utcOffset || null,
+      displayOffset: resolvedTimezone?.displayOffset || null,
+    };
+    onSelectSlot(finalSlot);
     onClose();
   };
 
@@ -367,6 +406,62 @@ export default function SlotPickerModal({
             paddingRight: 4,
           }}
         >
+          {/* LOCATION & TIMEZONE BANNER */}
+          {resolvedTimezone && (
+            <div
+              id="slot-picker-timezone-banner"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "#fff9f5",
+                border: "1px solid #fed7aa",
+                borderRadius: 10,
+                padding: "10px 14px",
+                marginBottom: 16,
+                flexWrap: "wrap",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    color: "#ea580c",
+                    marginBottom: 2,
+                  }}
+                >
+                  <i className="bi bi-geo-alt me-1"></i> Location
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                  {locationDisplayText}
+                </div>
+              </div>
+
+              <div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    color: "#ea580c",
+                    marginBottom: 2,
+                  }}
+                >
+                  <i className="bi bi-clock me-1"></i> Time Zone
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
+                  {resolvedTimezone.timezoneName}{" "}
+                  <span style={{ color: "#6b7280", fontWeight: 500 }}>({resolvedTimezone.displayOffset})</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="row g-4">
             {/* LEFT COLUMN: SELECT BATCH */}
             <div className="col-12 col-md-5">
@@ -771,6 +866,7 @@ export default function SlotPickerModal({
                 Selected: {formatDateDisplay(tempSelectedSlot.slotDate || tempSelectedSlot.date)} •{" "}
                 {tempSelectedSlot.batchName || tempSelectedSlot.label || activeBatch?.name || "Batch"} •{" "}
                 {formatSlotTimeRange(tempSelectedSlot.startTime, tempSelectedSlot.endTime)}
+                {resolvedTimezone?.displayOffset ? ` (${resolvedTimezone.displayOffset})` : ""}
               </span>
             ) : (
               <span style={{ color: "#6b7280" }}>

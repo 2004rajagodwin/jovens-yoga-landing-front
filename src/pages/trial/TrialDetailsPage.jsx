@@ -13,6 +13,7 @@ import { getPricing } from "../../services/pricingApi.js";
 import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 import SlotPickerModal from "../../components/SlotPickerModal.jsx";
 import { formatSlotSummary, formatDateWithWeekday, formatSlotTimeRange } from "../../lib/slotUtils.js";
+import { resolveLocationTimezone } from "../../services/locationApi.js";
 
 // Trial registration only supports these 5 countries/phone codes — a deliberately shorter
 // list than the shared COUNTRIES set (used elsewhere, e.g. the paid checkout flow) so that
@@ -96,6 +97,57 @@ export default function TrialDetailsPage() {
   const isRenewalPending = blockedStatus === "RENEWAL_PENDING" || Boolean(isAutoPayEnabled && isExpiryPassed && !isPaidActive && !isPaymentFailed);
   const isTrialActive = blockedStatus === "TRIAL_ACTIVE" && !isExpiryPassed;
   const addressConfig = getCountryAddressConfig(customer.countryRegion);
+
+  const [resolvedTimezone, setResolvedTimezone] = useState(null);
+  const [timezoneLoading, setTimezoneLoading] = useState(false);
+  const [timezoneError, setTimezoneError] = useState("");
+
+  useEffect(() => {
+    const { countryRegion, state, city, postalCode } = customer;
+    if (!countryRegion || !postalCode?.trim() || !city?.trim()) {
+      return;
+    }
+
+    if (!addressConfig.validatePostal(postalCode)) {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setTimezoneLoading(true);
+      setTimezoneError("");
+      resolveLocationTimezone(
+        countryRegion,
+        state,
+        city,
+        postalCode,
+        chosenSlot?.slotDate || chosenSlot?.date,
+        chosenSlot?.startTime
+      )
+        .then((res) => {
+          if (cancelled) return;
+          setResolvedTimezone(res);
+          setTimezoneLoading(false);
+          if (res?.timezoneId) {
+            getActiveSlots(null, null, null, res.timezoneId)
+              .then((data) => {
+                if (!cancelled) setSlots(data || []);
+              })
+              .catch(() => {});
+          }
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          setTimezoneLoading(false);
+          setTimezoneError(err?.message || "We couldn't determine your local timezone. Please verify your location details and try again.");
+        });
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [customer.countryRegion, customer.state, customer.city, customer.postalCode, chosenSlot?.slotDate, chosenSlot?.date]);
 
   // Holds the just-submitted "User Details" values while the OTP modal is open — nothing
   // below (eligibility check, trial creation) runs until OTP verification succeeds.
@@ -274,26 +326,53 @@ export default function TrialDetailsPage() {
       countryManuallySelectedRef.current = true;
     }
     setCustomer((prev) => ({ ...prev, [name]: value }));
+    // Immediately clear validation error when the user edits fields
+    if (errorMessage) {
+      setErrorMessage("");
+    }
   }
 
   function handleCountryChange(e) {
     countryManuallySelectedRef.current = true;
-    const details = SUPPORTED_COUNTRIES[e.target.value];
+    const newCountry = e.target.value;
+    const details = SUPPORTED_COUNTRIES[newCountry];
+    const newAddressConfig = getCountryAddressConfig(newCountry);
+
     setCustomer((prev) => ({
       ...prev,
-      countryRegion: e.target.value,
+      countryRegion: newCountry,
       countryPhoneCode: details ? details.phoneCode : prev.countryPhoneCode,
     }));
+
+    // Clear previous country timezone error and resolved timezone so new country resolves afresh
+    setTimezoneError("");
+    setResolvedTimezone(null);
+
+    // Dynamic country switch: Clear previous country error immediately and revalidate current postal value
+    if (customer.postalCode?.trim()) {
+      if (newAddressConfig.validatePostal(customer.postalCode)) {
+        // If current postal is valid for the newly selected country (e.g. 10001 for United States), clear error
+        setErrorMessage("");
+      } else if (errorMessage) {
+        // If it was already in an error state and is invalid for the new country, show the new country's message
+        setErrorMessage(`Please enter a valid ${newAddressConfig.postalLabel} (${newAddressConfig.postalHelp}).`);
+      } else {
+        setErrorMessage("");
+      }
+    } else {
+      setErrorMessage("");
+    }
   }
 
   function handleSubmit(e) {
     e.preventDefault();
+    const currentAddressConfig = getCountryAddressConfig(customer.countryRegion);
     if (!selectedSlot && !selectedSlotId) {
       setErrorMessage("Please select a batch and class date.");
       return;
     }
     if (!customer.state?.trim()) {
-      setErrorMessage(`Please enter your ${addressConfig.stateLabel.toLowerCase()}.`);
+      setErrorMessage(`Please enter your ${currentAddressConfig.stateLabel.toLowerCase()}.`);
       return;
     }
     if (!customer.city?.trim()) {
@@ -301,11 +380,11 @@ export default function TrialDetailsPage() {
       return;
     }
     if (!customer.postalCode?.trim()) {
-      setErrorMessage(`Please enter your ${addressConfig.postalLabel}.`);
+      setErrorMessage(`Please enter your ${currentAddressConfig.postalLabel}.`);
       return;
     }
-    if (!addressConfig.validatePostal(customer.postalCode)) {
-      setErrorMessage(`Please enter a valid ${addressConfig.postalLabel} (${addressConfig.postalHelp}).`);
+    if (!currentAddressConfig.validatePostal(customer.postalCode)) {
+      setErrorMessage(`Please enter a valid ${currentAddressConfig.postalLabel} (${currentAddressConfig.postalHelp}).`);
       return;
     }
     setErrorMessage("");
@@ -666,10 +745,13 @@ export default function TrialDetailsPage() {
           <form id="trial-details-form" onSubmit={handleSubmit}>
             <div className="row g-3">
               <div className="col-md-6">
-                {/* <label className="form-label">First name</label> */}
+                <label htmlFor="trial-first-name" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  First Name
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-person trial-input-icon" aria-hidden="true"></i>
                   <input
+                    id="trial-first-name"
                     className="form-control trial-input"
                     name="firstName"
                     placeholder="First name"
@@ -680,10 +762,13 @@ export default function TrialDetailsPage() {
                 </div>
               </div>
               <div className="col-md-6">
-                {/* <label className="form-label">Last name</label> */}
+                <label htmlFor="trial-last-name" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  Last Name
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-person trial-input-icon" aria-hidden="true"></i>
                   <input
+                    id="trial-last-name"
                     className="form-control trial-input"
                     name="lastName"
                     placeholder="Last name"
@@ -695,10 +780,13 @@ export default function TrialDetailsPage() {
               </div>
 
               <div className="col-12">
-                {/* <label className="form-label">Email address</label> */}
+                <label htmlFor="trial-email" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  Email Address
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-envelope trial-input-icon" aria-hidden="true"></i>
                   <input
+                    id="trial-email"
                     type="email"
                     className="form-control trial-input"
                     name="email"
@@ -711,8 +799,11 @@ export default function TrialDetailsPage() {
               </div>
 
               <div className="col-5 col-sm-4">
-                {/* <label className="form-label">Country Code</label> */}
+                <label htmlFor="trial-country-code" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  Country Code
+                </label>
                 <select
+                  id="trial-country-code"
                   className="form-select trial-input"
                   style={{ paddingLeft: 12 }}
                   name="countryPhoneCode"
@@ -728,10 +819,13 @@ export default function TrialDetailsPage() {
                 </select>
               </div>
               <div className="col-7 col-sm-8">
-                {/* <label className="form-label">Mobile / WhatsApp number</label> */}
+                <label htmlFor="trial-mobile" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  Mobile / WhatsApp
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-telephone trial-input-icon" aria-hidden="true"></i>
                   <input
+                    id="trial-mobile"
                     className="form-control trial-input"
                     name="mobileNumber"
                     placeholder="98765 43210"
@@ -743,12 +837,16 @@ export default function TrialDetailsPage() {
               </div>
 
               <div className="col-md-6">
-                {/* <label className="form-label">Country</label> */}
+                <label htmlFor="trial-country" id="trial-country-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  Country
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-geo-alt trial-input-icon" aria-hidden="true"></i>
                   <select
+                    id="trial-country"
                     className="form-select trial-input"
                     name="countryRegion"
+                    aria-labelledby="trial-country-label"
                     value={customer.countryRegion}
                     onChange={handleCountryChange}
                     required
@@ -762,7 +860,9 @@ export default function TrialDetailsPage() {
                 </div>
               </div>
               <div className="col-md-6">
-                {/* <label className="form-label">Select your slot</label> */}
+                <label htmlFor="choose-slot-button" id="trial-slot-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  Select your slot
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-calendar3 trial-input-icon" aria-hidden="true"></i>
                   <button
@@ -796,7 +896,7 @@ export default function TrialDetailsPage() {
                         : slots.length === 0
                         ? "No slots available"
                         : selectedSlot
-                        ? formatSlotSummary(selectedSlot)
+                        ? `${formatSlotSummary(selectedSlot)}${resolvedTimezone?.displayOffset ? ` (${resolvedTimezone.displayOffset})` : (selectedSlot.displayOffset ? ` (${selectedSlot.displayOffset})` : "")}`
                         : "Choose a slot"}
                     </span>
                     <i className="bi bi-chevron-down" style={{ fontSize: 13, color: "#9ca3af", flexShrink: 0 }}></i>
@@ -805,11 +905,16 @@ export default function TrialDetailsPage() {
               </div>
 
               <div className="col-md-6">
+                <label htmlFor="trial-state" id="trial-state-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  {addressConfig.stateLabel}
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-map trial-input-icon" aria-hidden="true"></i>
                   <input
+                    id="trial-state"
                     className="form-control trial-input"
                     name="state"
+                    aria-labelledby="trial-state-label"
                     placeholder={addressConfig.statePlaceholder}
                     value={customer.state}
                     onChange={handleCustomerFieldChange}
@@ -818,11 +923,16 @@ export default function TrialDetailsPage() {
                 </div>
               </div>
               <div className="col-md-6">
+                <label htmlFor="trial-city" id="trial-city-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  {addressConfig.cityLabel}
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-building trial-input-icon" aria-hidden="true"></i>
                   <input
+                    id="trial-city"
                     className="form-control trial-input"
                     name="city"
+                    aria-labelledby="trial-city-label"
                     placeholder={addressConfig.cityPlaceholder}
                     value={customer.city}
                     onChange={handleCustomerFieldChange}
@@ -832,11 +942,16 @@ export default function TrialDetailsPage() {
               </div>
 
               <div className="col-12">
+                <label htmlFor="trial-postal-code" id="trial-postal-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
+                  {addressConfig.postalLabel}
+                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-pin-map trial-input-icon" aria-hidden="true"></i>
                   <input
+                    id="trial-postal-code"
                     className="form-control trial-input"
                     name="postalCode"
+                    aria-labelledby="trial-postal-label"
                     placeholder={addressConfig.postalPlaceholder}
                     value={customer.postalCode}
                     onChange={handleCustomerFieldChange}
@@ -844,6 +959,49 @@ export default function TrialDetailsPage() {
                   />
                 </div>
               </div>
+
+              {resolvedTimezone && (
+                <div className="col-12">
+                  <div
+                    id="trial-form-timezone-info"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      background: "#fff9f5",
+                      border: "1px solid #ffd8c2",
+                      borderRadius: 8,
+                      padding: "8px 12px",
+                      fontSize: 12,
+                      color: "#9a3412",
+                      marginTop: 2,
+                      flexWrap: "wrap",
+                      gap: 6,
+                    }}
+                  >
+                    <div>
+                      <i className="bi bi-geo-alt me-1"></i>
+                      <span>
+                        {resolvedTimezone.city ? `${resolvedTimezone.city}, ` : ""}
+                        {resolvedTimezone.state ? `${resolvedTimezone.state}, ` : ""}
+                        {resolvedTimezone.country}
+                      </span>
+                    </div>
+                    <div>
+                      <i className="bi bi-clock me-1"></i>
+                      <strong style={{ color: "#ea580c" }}>{resolvedTimezone.timezoneName}</strong> ({resolvedTimezone.displayOffset})
+                    </div>
+                  </div>
+                </div>
+              )}
+              {timezoneError && (
+                <div className="col-12">
+                  <div className="text-danger" style={{ fontSize: 12, marginTop: 2 }}>
+                    <i className="bi bi-exclamation-triangle me-1"></i>
+                    {timezoneError}
+                  </div>
+                </div>
+              )}
             </div>
 
             {errorMessage && (
@@ -1162,6 +1320,8 @@ export default function TrialDetailsPage() {
           slots={slots}
           selectedSlot={selectedSlot}
           selectedSlotId={selectedSlotId}
+          customerLocation={customer}
+          resolvedTimezone={resolvedTimezone}
           onSelectSlot={(slot) => {
             setChosenSlot(slot);
             setSelectedSlotId(slot.id || null);

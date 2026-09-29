@@ -283,7 +283,7 @@ export default function AdminSlotsPage() {
           <div>
             <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>RECURRING DAILY BATCHES</h2>
             <p className="jy-page-subtitle" style={{ margin: "4px 0 0" }}>
-              Active batches automatically apply to every date across the booking window. No daily slot creation is required.
+              Batch times are shown in the customer's local timezone based on their location. Active batches automatically apply to every date across the booking window.
             </p>
           </div>
           {!editingBatch && (
@@ -314,7 +314,7 @@ export default function AdminSlotsPage() {
               <thead>
                 <tr>
                   <th>Batch Name</th>
-                  <th>Time Window</th>
+                  <th>Time Window (Customer Local Time)</th>
                   <th>Order</th>
                   <th>Status</th>
                   <th style={{ textAlign: "right" }}>Actions</th>
@@ -332,7 +332,10 @@ export default function AdminSlotsPage() {
                     <tr key={b.id}>
                       <td style={{ fontWeight: 600 }}>{b.name}</td>
                       <td>
-                        {formatTime12(b.startTime)} – {formatTime12(b.endTime)}
+                        <div style={{ fontWeight: 500 }}>
+                          {formatTime12(b.startTime)} – {formatTime12(b.endTime)}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#6b7280" }}>Customer Local Time</div>
                       </td>
                       <td>{b.displayOrder ?? 0}</td>
                       <td>
