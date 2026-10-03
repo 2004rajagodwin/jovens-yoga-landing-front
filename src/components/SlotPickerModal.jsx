@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   MONTH_NAMES,
   WEEKDAY_SHORT,
@@ -71,46 +71,6 @@ export default function SlotPickerModal({
     return `${y}-${m}-${d}`;
   }, [todayStr, bookingWindowWeeks]);
 
-  // Load active batches and booking window on open
-  useEffect(() => {
-    if (!isOpen) return;
-
-    getActiveBatches()
-      .then((data) => {
-        const list = Array.isArray(data) ? data : [];
-        setBatches(list);
-        setBatchesStatus("success");
-      })
-      .catch(() => {
-        // Fallback: derive unique active batches from slots if endpoint fails
-        const map = {};
-        slots.forEach((s) => {
-          if (!s.active) return;
-          const bId = s.batchId || s.id;
-          const bName = s.batchName || s.label || "Regular Batch";
-          if (!map[bId]) {
-            map[bId] = {
-              id: bId,
-              name: bName,
-              startTime: s.startTime,
-              endTime: s.endTime,
-              active: true,
-            };
-          }
-        });
-        setBatches(Object.values(map));
-        setBatchesStatus("success");
-      });
-
-    getBookingWindow()
-      .then((res) => {
-        if (res && res.bookingWindowWeeks) {
-          setBookingWindowWeeks(res.bookingWindowWeeks);
-        }
-      })
-      .catch(() => {});
-  }, [isOpen, slots]);
-
   // Current calendar view month & year initialized from customerLocalToday
   const [viewYear, setViewYear] = useState(() => {
     const parts = parseDateParts(todayStr);
@@ -121,53 +81,72 @@ export default function SlotPickerModal({
     return parts ? parts.month - 1 : new Date().getMonth();
   });
 
-  const locationDisplayText = useMemo(() => {
-    const city = resolvedTimezone?.city || customerLocation?.city || "";
-    const state = resolvedTimezone?.state || customerLocation?.state || "";
-    const country = resolvedTimezone?.country || customerLocation?.countryRegion || "";
-    const parts = [city, state, country].filter(Boolean);
-    return parts.length > 0 ? parts.join(", ") : "Customer Location";
-  }, [resolvedTimezone, customerLocation]);
+  const prevIsOpenRef = useRef(false);
+  const batchesRequestIdRef = useRef(0);
 
-  // Initialize selection when opening modal
+  // Load active batches, booking window, and initialize selection ONCE per modal open
   useEffect(() => {
-    if (!isOpen) return;
-
-    const parts = parseDateParts(todayStr);
-    if (parts) {
-      setViewYear(parts.year);
-      setViewMonth(parts.month - 1);
-    }
-
-    if (selectedSlot) {
-      setTempSelectedSlot(selectedSlot);
-      const slotDate = selectedSlot.slotDate || selectedSlot.date;
-      setTempSelectedDate(slotDate);
-      if (selectedSlot.batchId) {
-        setSelectedBatchId(selectedSlot.batchId);
-      }
-      if (slotDate) {
-        const parts = parseDateParts(slotDate);
-        if (parts) {
-          setViewYear(parts.year);
-          setViewMonth(parts.month - 1);
-        }
-      }
+    if (!isOpen) {
+      prevIsOpenRef.current = false;
       return;
     }
 
-    if (selectedSlotId) {
-      const current = slots.find((s) => s.id === selectedSlotId && s.active);
-      if (current) {
-        setTempSelectedSlot(current);
-        const slotDate = current.slotDate || current.date;
+    const isFirstOpen = !prevIsOpenRef.current;
+    prevIsOpenRef.current = true;
+
+    if (isFirstOpen) {
+      const currentRequestId = ++batchesRequestIdRef.current;
+      if (batches.length === 0) {
+        setBatchesStatus("loading");
+      }
+
+      getActiveBatches()
+        .then((data) => {
+          if (batchesRequestIdRef.current !== currentRequestId) return;
+          const list = Array.isArray(data) ? data : [];
+          setBatches(list);
+          setBatchesStatus("success");
+          setSelectedBatchId((prev) => prev || (list.length > 0 ? list[0].id : null));
+        })
+        .catch(() => {
+          if (batchesRequestIdRef.current !== currentRequestId) return;
+          // Fallback: derive unique active batches from slots if endpoint fails
+          const map = {};
+          (slots || []).forEach((s) => {
+            if (!s.active) return;
+            const bId = s.batchId || s.id;
+            const bName = s.batchName || s.label || "Regular Batch";
+            if (!map[bId]) {
+              map[bId] = {
+                id: bId,
+                name: bName,
+                startTime: s.startTime,
+                endTime: s.endTime,
+                active: true,
+              };
+            }
+          });
+          const list = Object.values(map);
+          setBatches(list);
+          setBatchesStatus("success");
+          setSelectedBatchId((prev) => prev || (list.length > 0 ? list[0].id : null));
+        });
+
+      getBookingWindow()
+        .then((res) => {
+          if (res && res.bookingWindowWeeks) {
+            setBookingWindowWeeks(res.bookingWindowWeeks);
+          }
+        })
+        .catch(() => {});
+
+      // Initialize selection on open
+      if (selectedSlot) {
+        setTempSelectedSlot(selectedSlot);
+        const slotDate = selectedSlot.slotDate || selectedSlot.date;
         setTempSelectedDate(slotDate);
-        const bId = current.batchId;
-        if (bId) {
-          setSelectedBatchId(bId);
-        } else if (batches.length > 0) {
-          const match = batches.find((b) => b.name === (current.batchName || current.label));
-          if (match) setSelectedBatchId(match.id);
+        if (selectedSlot.batchId) {
+          setSelectedBatchId(selectedSlot.batchId);
         }
         if (slotDate) {
           const parts = parseDateParts(slotDate);
@@ -176,22 +155,45 @@ export default function SlotPickerModal({
             setViewMonth(parts.month - 1);
           }
         }
-        return;
+      } else if (selectedSlotId) {
+        const current = (slots || []).find((s) => s.id === selectedSlotId && s.active);
+        if (current) {
+          setTempSelectedSlot(current);
+          const slotDate = current.slotDate || current.date;
+          setTempSelectedDate(slotDate);
+          if (current.batchId) {
+            setSelectedBatchId(current.batchId);
+          }
+          if (slotDate) {
+            const parts = parseDateParts(slotDate);
+            if (parts) {
+              setViewYear(parts.year);
+              setViewMonth(parts.month - 1);
+            }
+          }
+        }
+      } else {
+        setTempSelectedSlot(null);
+        setTempSelectedDate(null);
+        const parts = parseDateParts(todayStr);
+        if (parts) {
+          setViewYear(parts.year);
+          setViewMonth(parts.month - 1);
+        }
+        if (batches.length > 0) {
+          setSelectedBatchId(batches[0].id);
+        }
       }
     }
+  }, [isOpen]);
 
-    // Default to the first active batch if nothing selected yet
-    if (batches.length > 0 && !selectedBatchId) {
-      setSelectedBatchId(batches[0].id);
-    }
-  }, [isOpen, selectedSlot, selectedSlotId, slots, batches]);
-
-  // Auto-select first batch if none selected once batches load
-  useEffect(() => {
-    if (batches.length > 0 && !selectedBatchId) {
-      setSelectedBatchId(batches[0].id);
-    }
-  }, [batches, selectedBatchId]);
+  const locationDisplayText = useMemo(() => {
+    const city = resolvedTimezone?.city || customerLocation?.city || "";
+    const state = resolvedTimezone?.state || customerLocation?.state || "";
+    const country = resolvedTimezone?.country || customerLocation?.countryRegion || "";
+    const parts = [city, state, country].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : "Customer Location";
+  }, [resolvedTimezone, customerLocation]);
 
   const activeBatch = useMemo(() => {
     return batches.find((b) => b.id === selectedBatchId) || null;
@@ -344,7 +346,7 @@ export default function SlotPickerModal({
           maxHeight: "92vh",
           display: "flex",
           flexDirection: "column",
-          animation: "modalFadeIn 0.2s ease-out",
+          boxSizing: "border-box",
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -403,7 +405,9 @@ export default function SlotPickerModal({
           style={{
             flex: 1,
             overflowY: "auto",
+            scrollbarGutter: "stable",
             paddingRight: 4,
+            boxSizing: "border-box",
           }}
         >
           {/* LOCATION & TIMEZONE BANNER */}
@@ -517,20 +521,23 @@ export default function SlotPickerModal({
                           }
                         }}
                         style={{
+                          boxSizing: "border-box",
                           display: "flex",
                           alignItems: "center",
                           padding: "12px 14px",
                           borderRadius: 10,
-                          border: isSelected ? "2px solid #ff6b1b" : "1px solid #e5e7eb",
+                          border: "2px solid",
+                          borderColor: isSelected ? "#ff6b1b" : "#e5e7eb",
                           background: isSelected ? "#fff9f5" : "#fff",
                           cursor: "pointer",
-                          transition: "all 0.15s ease",
+                          transition: "border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease",
                           boxShadow: isSelected ? "0 2px 8px rgba(255, 107, 27, 0.12)" : "none",
                         }}
                       >
                         {/* Radio indicator */}
                         <div
                           style={{
+                            boxSizing: "border-box",
                             width: 18,
                             height: 18,
                             borderRadius: "50%",
@@ -538,12 +545,12 @@ export default function SlotPickerModal({
                             marginRight: 12,
                             flexShrink: 0,
                             background: "#fff",
-                            transition: "all 0.15s ease",
+                            transition: "border 0.15s ease",
                           }}
                         />
 
                         {/* Batch Info */}
-                        <div style={{ flex: 1 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: 14, color: "#111827" }}>
                             {batch.name}
                           </div>
@@ -565,6 +572,7 @@ export default function SlotPickerModal({
                         {isSelected && (
                           <span
                             style={{
+                              flexShrink: 0,
                               background: "#ff6b1b",
                               color: "#fff",
                               fontSize: 10,
@@ -754,15 +762,17 @@ export default function SlotPickerModal({
                             : "Batch unavailable"
                         }
                         style={{
+                          boxSizing: "border-box",
                           height: 38,
                           borderRadius: 8,
-                          border: isSelected
-                            ? "2px solid #ff6b1b"
+                          border: "2px solid",
+                          borderColor: isSelected
+                            ? "#ff6b1b"
                             : isToday && isSelectable
-                            ? "1px solid #ff6b1b"
+                            ? "#ff6b1b"
                             : isSelectable
-                            ? "1px solid #ffd8c2"
-                            : "1px solid transparent",
+                            ? "#ffd8c2"
+                            : "transparent",
                           background: isSelected
                             ? "#ff6b1b"
                             : isSelectable
@@ -782,7 +792,7 @@ export default function SlotPickerModal({
                           justifyContent: "center",
                           position: "relative",
                           padding: 0,
-                          transition: "all 0.15s ease",
+                          transition: "background 0.15s ease, border-color 0.15s ease, color 0.15s ease",
                         }}
                       >
                         <span>{dayNum}</span>

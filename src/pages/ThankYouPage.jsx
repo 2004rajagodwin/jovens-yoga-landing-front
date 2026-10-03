@@ -2,11 +2,68 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { getTrialByToken } from "../services/trialApi.js";
 import { getOrder } from "../services/orderApi.js";
-import { cancelTrialAutoPay } from "../services/paymentApi.js";
 import CheckoutLayout from "../components/checkout/CheckoutLayout.jsx";
 import ThankYouConfetti from "../components/ThankYouConfetti.jsx";
-import CancelAutoPayModal from "../components/CancelAutoPayModal.jsx";
-import { ApiError } from "../services/apiClient.js";
+
+// WhatsApp Community Invite URL — update this constant when changing the community link.
+const WHATSAPP_COMMUNITY_URL =
+  import.meta.env.VITE_WHATSAPP_COMMUNITY_URL || "https://chat.whatsapp.com/invite/jovens-yoga";
+
+function formatDateTime(dateVal) {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+}
+
+function formatDateOnly(dateVal) {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function formatSelectedSlot(trial) {
+  if (!trial) return "";
+  const parts = [];
+  if (trial.slotLabel) {
+    parts.push(trial.slotLabel);
+  }
+  let datePart = "";
+  if (trial.slotDate) {
+    datePart = formatDateOnly(trial.slotDate);
+    if (trial.slotStartTime) {
+      datePart += ` ${trial.slotStartTime}`;
+    }
+  }
+  if (parts.length > 0 && datePart) {
+    return `${parts[0]} — ${datePart}`;
+  }
+  if (parts.length > 0) return parts[0];
+  if (datePart) return datePart;
+  return "";
+}
+
+function getTrialDays(trial) {
+  if (trial?.trialStartDate && trial?.trialExpiryDate) {
+    const start = new Date(trial.trialStartDate).getTime();
+    const end = new Date(trial.trialExpiryDate).getTime();
+    const diffDays = Math.round((end - start) / (1000 * 60 * 60 * 24));
+    if (diffDays > 0) return diffDays;
+  }
+  return 5;
+}
 
 /**
  * Single Thank You concept for both flows. A visitor can freely type
@@ -28,9 +85,13 @@ export default function ThankYouPage() {
   });
   const [trial, setTrial] = useState(() => (type === "trial" ? location.state?.trial || null : null));
   const [order, setOrder] = useState(() => (type === "paid" ? location.state?.order || null : null));
-  const [cancelling, setCancelling] = useState(false);
-  const [cancelError, setCancelError] = useState("");
-  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  useEffect(() => {
+    document.body.classList.add("thankyou-page-active");
+    return () => {
+      document.body.classList.remove("thankyou-page-active");
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,27 +167,6 @@ export default function ThankYouPage() {
 
     return () => clearInterval(interval);
   }, [type, token, trial]);
-
-  async function handleConfirmCancelAutoPay() {
-    if (cancelling || !token) return;
-    setCancelling(true);
-    setCancelError("");
-    try {
-      await cancelTrialAutoPay(token);
-      setTrial((prev) => (prev ? { ...prev, autoPayCancelled: true } : prev));
-      setShowCancelModal(false);
-    } catch (err) {
-      setCancelError(err instanceof ApiError ? err.message : "Could not cancel AutoPay. Please try again.");
-    } finally {
-      setCancelling(false);
-    }
-  }
-
-  function handleCloseCancelModal() {
-    if (cancelling) return;
-    setShowCancelModal(false);
-    setCancelError("");
-  }
 
   if (status === "loading") {
     return (
@@ -265,155 +305,142 @@ export default function ThankYouPage() {
     );
   }
 
-  // Free trial, currently active — the redesigned premium confirmation experience.
+  // Free trial, currently active — matching the second reference design exactly
   if (trial) {
+    const trialDays = getTrialDays(trial);
+    const firstName = trial.firstName || "Member";
+    const planName = trial.planName || "Standard";
+    const currency = trial.currency || "INR";
+    const monthlyPrice = trial.price != null ? trial.price : "19.19";
+    const slotText = formatSelectedSlot(trial);
+
     return (
       <CheckoutLayout>
-        <div className="thankyou-page">
+        <div className="thankyou-wrapper">
           <ThankYouConfetti />
 
-          <div className="thankyou-hero">
-            <div className="thankyou-success-icon-wrap">
-              <span className="thankyou-burst" aria-hidden="true">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <span
-                    key={i}
-                    className="thankyou-burst-ray"
-                    style={{ transform: `rotate(${i * 45}deg) translateY(-46px)` }}
-                  />
-                ))}
-              </span>
-              <div className="thankyou-success-icon">
-                <i className="bi bi-check-lg" aria-hidden="true"></i>
-              </div>
-            </div>
-            <h1>Congratulations, {trial.firstName}!</h1>
-            <p className="thankyou-subtitle">Your {trial.planName} Free Trial is Active.</p>
-            <p className="thankyou-tagline">Welcome to your yoga journey. We&rsquo;re excited to have you with us!</p>
-          </div>
+          {/* Main White Thank You Card */}
+          <div className="thankyou-main-card">
+            {/* Green Gradient Header Section */}
+            <div className="thankyou-header-banner" />
 
-          <div className="thankyou-card">
-            <div className="thankyou-card-head">
-              <div>
-                <h2 className="thankyou-card-title">Trial Details</h2>
-                <p className="thankyou-card-subtitle">Here&rsquo;s your plan information</p>
-              </div>
-              <div className="d-flex align-items-center gap-2 flex-wrap">
-                <span className="thankyou-status-pill">
-                  <span className="thankyou-status-dot" aria-hidden="true"></span>
-                  FREE TRIAL ACTIVE
-                </span>
-                {trial.autoPayCancelled && (
-                  <span className="badge bg-warning text-dark px-2 py-1" style={{ fontSize: "0.8rem", fontWeight: 600 }}>
-                    AutoPay CANCELLED
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="thankyou-rows">
-              <div className="thankyou-row">
-                <span className="thankyou-row-label">Plan</span>
-                <span className="thankyou-row-value">{trial.planName}</span>
-              </div>
-              <div className="thankyou-row">
-                <span className="thankyou-row-label">Registration ID</span>
-                <span className="thankyou-row-value">{trial.id}</span>
-              </div>
-              <div className="thankyou-row">
-                <span className="thankyou-row-label">Trial Start</span>
-                <span className="thankyou-row-value">{new Date(trial.trialStartDate).toLocaleString()}</span>
-              </div>
-              <div className="thankyou-row">
-                <span className="thankyou-row-label">Trial Expiry</span>
-                <span className="thankyou-row-value">{new Date(trial.trialExpiryDate).toLocaleString()}</span>
-              </div>
-              {trial.slotDate && (
-                <div className="thankyou-row">
-                  <span className="thankyou-row-label">Selected Slot</span>
-                  <span className="thankyou-row-value">
-                    {trial.slotLabel ? `${trial.slotLabel} — ` : ""}
-                    {new Date(trial.slotDate).toLocaleDateString()} {trial.slotStartTime ?? ""}
-                  </span>
+            {/* Large Circular Green Check Icon Overlapping Header */}
+            <div className="thankyou-check-wrapper">
+              <div className="thankyou-check-outer">
+                <div className="thankyou-check-inner">
+                  <svg
+                    width="34"
+                    height="34"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#ffffff"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
                 </div>
-              )}
-              <div className="thankyou-row">
-                <span className="thankyou-row-label">Today</span>
-                <span className="thankyou-row-value">{trial.currency} 0</span>
-              </div>
-              {trial.durationLabel && (
-                <div className="thankyou-row">
-                  <span className="thankyou-row-label">After Trial ({trial.durationLabel})</span>
-                  <span className="thankyou-row-value">
-                    {trial.currency} {trial.price}
-                  </span>
-                </div>
-              )}
-              <div className="thankyou-row">
-                <span className="thankyou-row-label">AutoPay Status</span>
-                <span className="thankyou-row-value">
-                  {trial.autoPayCancelled ? (
-                    <span className="text-warning fw-semibold">CANCELLED</span>
-                  ) : (
-                    <span className="text-success fw-semibold">ENABLED</span>
-                  )}
-                </span>
               </div>
             </div>
 
-            <div className="thankyou-billing-note">
-              <span className="thankyou-billing-icon" aria-hidden="true">
-                <i className={`bi ${trial.autoPayCancelled ? "bi-info-circle text-warning" : "bi-calendar-check"}`} aria-hidden="true"></i>
-              </span>
-              <p>
-                <strong>Your free trial is active until {new Date(trial.trialExpiryDate).toLocaleString()}.</strong>
-                <br />
-                {trial.autoPayCancelled ? (
-                  "Your automatic renewal has been cancelled. Your trial continues until expiry and you will not be charged."
-                ) : (
-                  "You won’t be charged today. Your saved payment method will be automatically charged according to your selected plan after the trial ends."
-                )}
+            {/* Card Body */}
+            <div className="thankyou-card-body">
+              <h1 className="thankyou-title">Congratulations, {firstName} !</h1>
+              <p className="thankyou-status-subtitle">
+                Your {planName} <span className="thankyou-status-highlight">{trialDays}-Day Free Trial is Active.</span>
               </p>
-            </div>
+              <p className="thankyou-welcome-msg">
+                Welcome to your yoga journey, We’re excited to have you with us !
+              </p>
 
-            <div className="d-flex flex-wrap gap-2 mt-3">
-              <Link to={`/trial/details?token=${encodeURIComponent(token)}`} className="checkout-back-link">
-                <i className="bi bi-arrow-left"></i> Back
-              </Link>
-              {!trial.autoPayCancelled && (
-                <button
-                  type="button"
-                  className="btn btn-outline-danger"
-                  onClick={() => setShowCancelModal(true)}
-                  disabled={cancelling}
+              {/* Green-Bordered Trial Details Box */}
+              <div className="thankyou-details-box">
+                <div className="thankyou-detail-row">
+                  <span className="thankyou-detail-label">Plan</span>
+                  <span className="thankyou-detail-value">{planName}</span>
+                </div>
+                <div className="thankyou-detail-row">
+                  <span className="thankyou-detail-label">Registration ID</span>
+                  <span className="thankyou-detail-value">{trial.id}</span>
+                </div>
+                <div className="thankyou-detail-row">
+                  <span className="thankyou-detail-label">Trial Start</span>
+                  <span className="thankyou-detail-value">{formatDateTime(trial.trialStartDate)}</span>
+                </div>
+                <div className="thankyou-detail-row">
+                  <span className="thankyou-detail-label">Trial Expiry</span>
+                  <span className="thankyou-detail-value">{formatDateTime(trial.trialExpiryDate)}</span>
+                </div>
+                {slotText && (
+                  <div className="thankyou-detail-row">
+                    <span className="thankyou-detail-label">Selected Slot</span>
+                    <span className="thankyou-detail-value">{slotText}</span>
+                  </div>
+                )}
+                <div className="thankyou-detail-row">
+                  <span className="thankyou-detail-label">Today</span>
+                  <span className="thankyou-detail-value">{currency} 0</span>
+                </div>
+                <div className="thankyou-detail-row">
+                  <span className="thankyou-detail-label">After Trial (Per Month)</span>
+                  <span className="thankyou-detail-value">{currency} {monthlyPrice}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons: 1. Back to Home (black), 2. Join WhatsApp Community (green) */}
+              <div className="thankyou-btn-group">
+                <Link to="/" className="thankyou-btn-home">
+                  Back to Home
+                </Link>
+                <a
+                  href={WHATSAPP_COMMUNITY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="thankyou-btn-whatsapp"
                 >
-                  Cancel Subscription
-                </button>
-              )}
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="thankyou-wa-icon"
+                    aria-hidden="true"
+                  >
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.592 2.654-.696c1.004.579 1.777.857 2.806.857 3.18 0 5.767-2.586 5.767-5.766.001-3.18-2.585-5.766-5.767-5.766zm3.393 8.163c-.144.405-.837.774-1.17.824-.312.045-.634.073-1.801-.412-1.393-.579-2.28-2.001-2.35-2.094-.07-.093-.564-.75-.564-1.429 0-.679.354-1.014.479-1.152.125-.138.272-.173.363-.173.091 0 .182.001.261.005.083.004.195-.032.304.232.113.275.385.94.42 1.009.034.07.057.151.011.242-.046.091-.069.148-.137.228-.068.079-.143.176-.205.237-.068.068-.139.141-.06.277.079.136.35 1.774 1.344 2.247.288.137.534.195.727.226.24.038.382.032.525-.084.143-.117.614-.716.779-.961.164-.245.328-.205.549-.123.221.082 1.402.661 1.642.781.24.12.4.18.459.282.06.102.06.592-.084.997z" />
+                    <path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.34 5L2 22l5.17-1.31C8.61 21.49 10.26 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm.03 17.67c-1.57 0-3.08-.47-4.38-1.32l-.31-.2-3.06.8.82-2.98-.21-.33c-.93-1.46-1.42-3.15-1.42-4.91 0-4.96 4.04-9 9-9s9 4.04 9 9-4.04 8.94-8.94 8.94z" />
+                  </svg>
+                  <span>Join WhatsApp Community</span>
+                </a>
+              </div>
             </div>
           </div>
 
-          {showCancelModal && (
-            <CancelAutoPayModal
-              onConfirm={handleConfirmCancelAutoPay}
-              onCancel={handleCloseCancelModal}
-              submitting={cancelling}
-              errorMessage={cancelError}
-            />
-          )}
-
-          {/* Same real WhatsApp contact number already used by the site-wide floating button
-              on Home.jsx (insd-new-fix-whatsapp) — reused here, not a new/invented number.
-              This opens WhatsApp directly; it does not call any backend AskEva/OTP endpoint. */}
-          <a
-           href="https://wa.me/19592000495"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="thankyou-cta thankyou-cta-whatsapp"
-          >
-            <i className="fab fa-whatsapp" aria-hidden="true"></i>
-            Chat with us on WhatsApp
-          </a>
+          {/* Green Important Notice Box Below Card */}
+          <div className="thankyou-notice-card">
+            <div className="thankyou-notice-header">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span>Important Notice</span>
+            </div>
+            <div className="thankyou-notice-body">
+              <strong>Your {trialDays}-day free trial is now active.</strong> You won’t be charged today. Your saved payment method will be automatically charged <strong>{currency} {monthlyPrice}/month</strong> after the trial ends on <strong>{formatDateOnly(trial.trialExpiryDate)}</strong>.
+            </div>
+          </div>
         </div>
       </CheckoutLayout>
     );

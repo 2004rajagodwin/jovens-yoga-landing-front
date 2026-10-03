@@ -58,6 +58,63 @@ function formatSlot(slot) {
   return `${label}${date} ${time}`.trim();
 }
 
+function formatDateTime(dateVal) {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  return `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+}
+
+function formatDateOnly(dateVal) {
+  if (!dateVal) return "";
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return String(dateVal);
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+}
+
+function formatSelectedSlotText(trial) {
+  if (!trial) return "";
+  const parts = [];
+  if (trial.slotLabel) parts.push(trial.slotLabel);
+  let datePart = "";
+  if (trial.slotDate) {
+    datePart = formatDateOnly(trial.slotDate);
+    if (trial.slotStartTime) datePart += ` ${trial.slotStartTime}`;
+  }
+  if (parts.length > 0 && datePart) return `${parts[0]} — ${datePart}`;
+  if (parts.length > 0) return parts[0];
+  if (datePart) return datePart;
+  return "";
+}
+
+function calculateTrialUsage(startDateStr, expiryDateStr, isExpiredForce = false) {
+  if (isExpiredForce) return 100;
+  if (!startDateStr || !expiryDateStr) return 0;
+  const start = new Date(startDateStr).getTime();
+  const end = new Date(expiryDateStr).getTime();
+  if (isNaN(start) || isNaN(end) || end <= start) return 0;
+
+  const now = Date.now();
+  if (now <= start) return 0;
+  if (now >= end) return 100;
+
+  const elapsed = now - start;
+  const total = end - start;
+  const pct = (elapsed / total) * 100;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
 export default function TrialDetailsPage() {
   const [searchParams] = useSearchParams();
   const planId = Number(searchParams.get("planId"));
@@ -98,9 +155,41 @@ export default function TrialDetailsPage() {
   const isTrialActive = blockedStatus === "TRIAL_ACTIVE" && !isExpiryPassed;
   const addressConfig = getCountryAddressConfig(customer.countryRegion);
 
+  const [trialUsagePct, setTrialUsagePct] = useState(() =>
+    calculateTrialUsage(blockedTrial?.trialStartDate, blockedTrial?.trialExpiryDate, isExpired)
+  );
+
+  useEffect(() => {
+    if (!blockedTrial?.trialStartDate || !blockedTrial?.trialExpiryDate) {
+      if (isExpired) setTrialUsagePct(100);
+      return;
+    }
+
+    if (isExpired || new Date(blockedTrial.trialExpiryDate).getTime() <= Date.now()) {
+      setTrialUsagePct(100);
+      return;
+    }
+
+    setTrialUsagePct(
+      calculateTrialUsage(blockedTrial.trialStartDate, blockedTrial.trialExpiryDate, false)
+    );
+
+    const timer = setInterval(() => {
+      const nextUsage = calculateTrialUsage(
+        blockedTrial.trialStartDate,
+        blockedTrial.trialExpiryDate,
+        false
+      );
+      setTrialUsagePct((prev) => (prev !== nextUsage ? nextUsage : prev));
+    }, 30000);
+
+    return () => clearInterval(timer);
+  }, [blockedTrial?.trialStartDate, blockedTrial?.trialExpiryDate, isExpired]);
+
   const [resolvedTimezone, setResolvedTimezone] = useState(null);
   const [timezoneLoading, setTimezoneLoading] = useState(false);
   const [timezoneError, setTimezoneError] = useState("");
+  const lastResolvedLocationKeyRef = useRef("");
 
   useEffect(() => {
     const { countryRegion, state, city, postalCode } = customer;
@@ -112,6 +201,11 @@ export default function TrialDetailsPage() {
       return;
     }
 
+    const locationKey = `${countryRegion}|${(state || "").trim().toLowerCase()}|${city.trim().toLowerCase()}|${postalCode.trim().toLowerCase()}`;
+    if (lastResolvedLocationKeyRef.current === locationKey && resolvedTimezone) {
+      return;
+    }
+
     let cancelled = false;
     const timer = setTimeout(() => {
       setTimezoneLoading(true);
@@ -120,18 +214,20 @@ export default function TrialDetailsPage() {
         countryRegion,
         state,
         city,
-        postalCode,
-        chosenSlot?.slotDate || chosenSlot?.date,
-        chosenSlot?.startTime
+        postalCode
       )
         .then((res) => {
           if (cancelled) return;
+          lastResolvedLocationKeyRef.current = locationKey;
           setResolvedTimezone(res);
           setTimezoneLoading(false);
           if (res?.timezoneId) {
             getActiveSlots(null, null, null, res.timezoneId)
               .then((data) => {
-                if (!cancelled) setSlots(data || []);
+                if (!cancelled) {
+                  setSlots(data || []);
+                  setSlotsStatus("success");
+                }
               })
               .catch(() => {});
           }
@@ -147,7 +243,7 @@ export default function TrialDetailsPage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [customer.countryRegion, customer.state, customer.city, customer.postalCode, chosenSlot?.slotDate, chosenSlot?.date]);
+  }, [customer.countryRegion, customer.state, customer.city, customer.postalCode]);
 
   // Holds the just-submitted "User Details" values while the OTP modal is open — nothing
   // below (eligibility check, trial creation) runs until OTP verification succeeds.
@@ -583,127 +679,256 @@ export default function TrialDetailsPage() {
     );
   }
 
-  // Existing Active Free Trial
-  if (isTrialActive) {
+  function renderTrialStatusCard(isActive) {
+    const firstName = blockedCustomer?.firstName || blockedTrial?.firstName || "Member";
+    const planName = blockedTrial?.planName || plan?.name || "Standard";
+    const registrationId = blockedTrial?.id || "";
+    const trialStart = blockedTrial?.trialStartDate ? formatDateTime(blockedTrial.trialStartDate) : "";
+    const trialExpiry = blockedTrial?.trialExpiryDate ? formatDateTime(blockedTrial.trialExpiryDate) : "";
+    const trialStartDateOnly = blockedTrial?.trialStartDate ? formatDateOnly(blockedTrial.trialStartDate) : "";
+    const trialEndDateOnly = blockedTrial?.trialExpiryDate ? formatDateOnly(blockedTrial.trialExpiryDate) : "";
+    const selectedSlotText = formatSelectedSlotText(blockedTrial);
+    const usageDisplayPct = isActive ? trialUsagePct : 100;
+
     return (
       <CheckoutLayout>
-      <div className="container py-5" style={{ maxWidth: 680 }}>
-        <div className="alert alert-warning" style={{padding:22}}>
-          <h2 className="mb-2" style={{ fontSize: 20 }}>
-            🎉 Your Free Trial is Already Active
-          </h2>
-          <p className="mb-3">
-            Hi {blockedCustomer?.firstName}, your {blockedTrial?.planName || "trial"} free trial is currently
-            active.
-          </p>
-          {blockedTrial ? (
-            <div className="text-start" style={{ border: "1px solid #eee", borderRadius: 10, padding: 20, background: "#fff" }}>
-              <p>
-                <strong>Plan:</strong> {blockedTrial.planName}
-              </p>
-              <p>
-                <strong>Trial Started:</strong> {new Date(blockedTrial.trialStartDate).toLocaleString()}
-              </p>
-              <p>
-                <strong>Trial Ends:</strong> {new Date(blockedTrial.trialExpiryDate).toLocaleString()}
-              </p>
-              {blockedTrial.slotDate && (
-                <p>
-                  <strong>Selected Slot:</strong> {blockedTrial.slotLabel ? `${blockedTrial.slotLabel} — ` : ""}
-                  {new Date(blockedTrial.slotDate).toLocaleDateString()} {blockedTrial.slotStartTime ?? ""}
-                </p>
-              )}
-              <p className="mb-0">
-                <strong>Status:</strong> FREE TRIAL ACTIVE
-              </p>
-              {blockedTrial.autoPayCancelled && (
-                <p className="mb-0" style={{ color: "#b45309", fontWeight: 600 }}>
-                  AutoPay: CANCELLED
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-muted">Loading your trial details…</p>
-          )}
-          <p className="text-muted  paraksfo" style={{ margin: "27px 0" }}>
-            You can continue using your trial{blockedTrial ? ` until ${new Date(blockedTrial.trialExpiryDate).toLocaleString()}` : ""}.
-            {blockedTrial?.autoPayCancelled
-              ? " AutoPay has been cancelled, so no payment will be taken after the trial ends."
-              : " The saved payment method will be used for the scheduled subscription charge after the trial ends."}
-          </p>
+        <div className="trial-status-page-wrapper">
+          <div className="trial-status-card">
+            {/* LEFT: Orange Yoga visual panel */}
+            <div className="trial-status-left-panel">
+              {/* Badges: Top-Left Status, Top-Right Plan */}
+              <div className="trial-status-badges">
+                <span className="trial-badge-status">
+                  <span className="trial-badge-status-dot" aria-hidden="true" />
+                  {isActive ? "ACTIVE" : "EXPIRED"}
+                </span>
+                <span className="trial-badge-plan">{planName.toUpperCase()}</span>
+              </div>
 
-          {cancelError && (
-            <div className="alert alert-danger" role="alert" style={{ fontSize: 13 }}>
-              {cancelError}
-            </div>
-          )}
+              {/* Heading & Greeting */}
+              <div className="trial-status-left-content">
+                <h1 className="trial-status-title">
+                  {isActive ? "Your free trial is active" : "Your free trial has expired"}
+                </h1>
+                <p className="trial-status-greeting">
+                  Hi <strong>{firstName}</strong>, your {planName} free trial{" "}
+                  {isActive ? "is currently running." : "has expired."}
+                </p>
+              </div>
 
-          {blockedTrial && blockedAccessToken && (
-            <div className="d-flex flex-wrap gap-2">
-              <Link
-                to={`/thank-you?type=trial&token=${encodeURIComponent(blockedAccessToken)}`}
-                className="btn"
-                style={{ background: "#ff6b1b", color: "#fff" }}
-              >
-                View My Trial Details
-              </Link>
-              {!blockedTrial.autoPayCancelled && (
+              {/* Bottom Visual: Lotus Watermark + Yoga Girl */}
+              <div className="trial-status-visual-wrap">
+                <svg
+                  className="trial-status-lotus-watermark"
+                  viewBox="0 0 200 200"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M100 20 C100 80, 50 120, 100 170 C150 120, 100 80, 100 20 Z"
+                    stroke="rgba(255,255,255,0.22)"
+                    strokeWidth="2.5"
+                    fill="rgba(255,255,255,0.06)"
+                  />
+                  <path
+                    d="M100 60 C70 90, 30 130, 80 170 C110 130, 100 90, 100 60 Z"
+                    stroke="rgba(255,255,255,0.22)"
+                    strokeWidth="2.5"
+                    fill="rgba(255,255,255,0.06)"
+                  />
+                  <path
+                    d="M100 60 C130 90, 170 130, 120 170 C90 130, 100 90, 100 60 Z"
+                    stroke="rgba(255,255,255,0.22)"
+                    strokeWidth="2.5"
+                    fill="rgba(255,255,255,0.06)"
+                  />
+                  <path
+                    d="M80 90 C40 120, 15 150, 70 180 C95 150, 90 120, 80 90 Z"
+                    stroke="rgba(255,255,255,0.18)"
+                    strokeWidth="2"
+                    fill="rgba(255,255,255,0.04)"
+                  />
+                  <path
+                    d="M120 90 C160 120, 185 150, 130 180 C105 150, 110 120, 120 90 Z"
+                    stroke="rgba(255,255,255,0.18)"
+                    strokeWidth="2"
+                    fill="rgba(255,255,255,0.04)"
+                  />
+                </svg>
+                <img
+                  src="/images/form-left-yoga-girl-absol.png"
+                  alt="Yoga posture"
+                  className="trial-status-yoga-img"
+                />
+              </div>
+            </div>
+
+            {/* RIGHT: White Trial Details panel */}
+            <div className="trial-status-right-panel">
+              {/* 1. Trial Usage & Dynamic Progress Bar */}
+              <div className="trial-usage-section">
+                <div className="trial-usage-header">
+                  <span className="trial-usage-label">Trial usage</span>
+                  <span className="trial-usage-pct">{usageDisplayPct}%</span>
+                </div>
+                <div className="trial-usage-bar-track">
+                  <div
+                    className="trial-usage-bar-fill"
+                    style={{ width: `${usageDisplayPct}%` }}
+                  />
+                </div>
+                {(trialStartDateOnly || trialEndDateOnly) && (
+                  <div className="trial-usage-dates">
+                    <span>{trialStartDateOnly}</span>
+                    <span>{trialEndDateOnly}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Trial Details Box */}
+              <div className="trial-status-details-table">
+                <div className="trial-status-details-row">
+                  <span className="trial-status-details-label">Plan</span>
+                  <span className="trial-status-details-value">{planName}</span>
+                </div>
+                {registrationId ? (
+                  <div className="trial-status-details-row">
+                    <span className="trial-status-details-label">Registration ID</span>
+                    <span className="trial-status-details-value">{registrationId}</span>
+                  </div>
+                ) : null}
+                {trialStart ? (
+                  <div className="trial-status-details-row">
+                    <span className="trial-status-details-label">Trial Started</span>
+                    <span className="trial-status-details-value">{trialStart}</span>
+                  </div>
+                ) : null}
+                {trialExpiry ? (
+                  <div className="trial-status-details-row">
+                    <span className="trial-status-details-label">Trial Ends</span>
+                    <span className="trial-status-details-value">{trialExpiry}</span>
+                  </div>
+                ) : null}
+                {selectedSlotText ? (
+                  <div className="trial-status-details-row">
+                    <span className="trial-status-details-label">Selected Slot</span>
+                    <span className="trial-status-details-value">{selectedSlotText}</span>
+                  </div>
+                ) : null}
+                <div className="trial-status-details-row">
+                  <span className="trial-status-details-label">Status</span>
+                  <span
+                    className={`trial-status-details-value ${
+                      isActive ? "trial-status-highlight-active" : "trial-status-highlight-expired"
+                    }`}
+                  >
+                    {isActive ? "FREE TRIAL ACTIVE" : "FREE TRIAL EXPIRED"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 3. Notice Box */}
+              <div className="trial-status-notice-box">
+                <p className="trial-status-notice-text">
+                  {isActive ? (
+                    <>
+                      You can continue using your trial until{" "}
+                      <strong>{trialEndDateOnly || trialExpiry}</strong>.{" "}
+                      {blockedTrial?.autoPayCancelled
+                        ? "AutoPay has been cancelled, so no payment will be taken after the trial ends."
+                        : "Your saved payment method will be used for the scheduled subscription charge after the trial ends."}
+                    </>
+                  ) : (
+                    blockedTrial?.autoPayCancelled
+                      ? "Your automatic renewal was cancelled. Please choose a plan to continue."
+                      : blockedMessage || "Your free trial has already been used. Please choose a Standard or Premium plan."
+                  )}
+                </p>
+                <i className="bi bi-exclamation-triangle trial-status-notice-icon" aria-hidden="true" />
+              </div>
+
+              {cancelError && (
+                <div className="alert alert-danger py-2 mb-3" role="alert" style={{ fontSize: 13 }}>
+                  {cancelError}
+                </div>
+              )}
+
+              {/* 4. Action Buttons */}
+              <div className="trial-status-actions">
+                {isActive ? (
+                  <>
+                    {blockedAccessToken && (
+                      <Link
+                        to={`/thank-you?type=trial&token=${encodeURIComponent(blockedAccessToken)}`}
+                        className="trial-status-btn-view"
+                      >
+                        View My Trial Details
+                      </Link>
+                    )}
+                    {!blockedTrial?.autoPayCancelled && (
+                      <button
+                        type="button"
+                        className="trial-status-btn-cancel"
+                        onClick={() => setShowCancelModal(true)}
+                        disabled={cancelling}
+                      >
+                        Cancel Subscription
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="trial-status-btn-pay"
+                      onClick={handleContinueToPaidPlans}
+                    >
+                      Pay Now
+                    </button>
+                    {blockedAccessToken && (
+                      <Link
+                        to={`/thank-you?type=trial&token=${encodeURIComponent(blockedAccessToken)}`}
+                        className="trial-status-btn-view"
+                        style={{ background: "#374151" }}
+                      >
+                        View My Trial Details
+                      </Link>
+                    )}
+                  </>
+                )}
                 <button
                   type="button"
-                  className="btn btn-danger"
-                  onClick={() => setShowCancelModal(true)}
-                  disabled={cancelling}
+                  className="trial-status-back-link"
+                  onClick={() => navigate(-1)}
                 >
-                  Cancel Subscription
+                  <i className="bi bi-arrow-left" aria-hidden="true"></i> Back
                 </button>
-              )}
+              </div>
             </div>
-          )}
-
-          <button type="button" className="checkout-back-link " onClick={() => navigate(-1)}>
-            <i className="bi bi-arrow-left"></i> Back
-          </button>
+          </div>
         </div>
-      </div>
 
-      {showCancelModal && (
-        <CancelAutoPayModal
-          onConfirm={handleConfirmCancelAutoPay}
-          onCancel={handleCloseCancelModal}
-          submitting={cancelling}
-          errorMessage={cancelError}
-        />
-      )}
+        {showCancelModal && (
+          <CancelAutoPayModal
+            onConfirm={handleConfirmCancelAutoPay}
+            onCancel={handleCloseCancelModal}
+            submitting={cancelling}
+            errorMessage={cancelError}
+          />
+        )}
       </CheckoutLayout>
     );
   }
 
+  // Existing Active Free Trial
+  if (isTrialActive) {
+    return renderTrialStatusCard(true);
+  }
+
   // CASE 2: AutoPay Cancelled + Expired (or general expired)
   if (blockedMessage || blockedStatus === "TRIAL_EXPIRED" || (blockedTrial?.autoPayCancelled && isExpiryPassed)) {
-    return (
-      <CheckoutLayout>
-      <div className="container py-5" style={{ maxWidth: 640 }}>
-        <div className="alert alert-warning">
-          <h2 className="mb-2" style={{ fontSize: 20 }}>
-            Your Free Trial Has Expired
-          </h2>
-          <p className="mb-3">
-            {blockedTrial?.autoPayCancelled
-              ? "Your automatic renewal was cancelled. Please choose a plan to continue."
-              : blockedMessage || "Your free trial has already been used. Please choose a Standard or Premium plan."}
-          </p>
-          <button
-            type="button"
-            className="btn"
-            style={{ background: "#ff6b1b", color: "#fff" }}
-            onClick={handleContinueToPaidPlans}
-          >
-            Pay Now
-          </button>
-        </div>
-      </div>
-      </CheckoutLayout>
-    );
+    return renderTrialStatusCard(false);
   }
 
   if ((!planId || !durationId) && !tokenParam) {
@@ -745,15 +970,13 @@ export default function TrialDetailsPage() {
           <form id="trial-details-form" onSubmit={handleSubmit}>
             <div className="row g-3">
               <div className="col-md-6">
-                <label htmlFor="trial-first-name" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  First Name
-                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-person trial-input-icon" aria-hidden="true"></i>
                   <input
                     id="trial-first-name"
                     className="form-control trial-input"
                     name="firstName"
+                    aria-label="First Name"
                     placeholder="First name"
                     value={customer.firstName}
                     onChange={handleCustomerFieldChange}
@@ -762,15 +985,13 @@ export default function TrialDetailsPage() {
                 </div>
               </div>
               <div className="col-md-6">
-                <label htmlFor="trial-last-name" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  Last Name
-                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-person trial-input-icon" aria-hidden="true"></i>
                   <input
                     id="trial-last-name"
                     className="form-control trial-input"
                     name="lastName"
+                    aria-label="Last Name"
                     placeholder="Last name"
                     value={customer.lastName}
                     onChange={handleCustomerFieldChange}
@@ -780,9 +1001,6 @@ export default function TrialDetailsPage() {
               </div>
 
               <div className="col-12">
-                <label htmlFor="trial-email" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  Email Address
-                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-envelope trial-input-icon" aria-hidden="true"></i>
                   <input
@@ -790,6 +1008,7 @@ export default function TrialDetailsPage() {
                     type="email"
                     className="form-control trial-input"
                     name="email"
+                    aria-label="Email Address"
                     placeholder="Your email address"
                     value={customer.email}
                     onChange={handleCustomerFieldChange}
@@ -799,14 +1018,12 @@ export default function TrialDetailsPage() {
               </div>
 
               <div className="col-5 col-sm-4">
-                <label htmlFor="trial-country-code" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  Country Code
-                </label>
                 <select
                   id="trial-country-code"
                   className="form-select trial-input"
                   style={{ paddingLeft: 12 }}
                   name="countryPhoneCode"
+                  aria-label="Country Code"
                   value={customer.countryPhoneCode}
                   onChange={handleCustomerFieldChange}
                   required
@@ -819,16 +1036,14 @@ export default function TrialDetailsPage() {
                 </select>
               </div>
               <div className="col-7 col-sm-8">
-                <label htmlFor="trial-mobile" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  Mobile / WhatsApp
-                </label>
                 <div className="trial-input-wrap">
                   <i className="bi bi-telephone trial-input-icon" aria-hidden="true"></i>
                   <input
                     id="trial-mobile"
                     className="form-control trial-input"
                     name="mobileNumber"
-                    placeholder="98765 43210"
+                    aria-label="Mobile / WhatsApp"
+                    placeholder="Enter whatsApp number"
                     value={customer.mobileNumber}
                     onChange={handleCustomerFieldChange}
                     required
@@ -837,15 +1052,14 @@ export default function TrialDetailsPage() {
               </div>
 
               <div className="col-md-6">
-                <label htmlFor="trial-country" id="trial-country-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  Country
-                </label>
+                <span id="trial-country-label" className="visually-hidden">Country</span>
                 <div className="trial-input-wrap">
                   <i className="bi bi-geo-alt trial-input-icon" aria-hidden="true"></i>
                   <select
                     id="trial-country"
                     className="form-select trial-input"
                     name="countryRegion"
+                    aria-label="Country"
                     aria-labelledby="trial-country-label"
                     value={customer.countryRegion}
                     onChange={handleCountryChange}
@@ -859,7 +1073,61 @@ export default function TrialDetailsPage() {
                   </select>
                 </div>
               </div>
+
               <div className="col-md-6">
+                <span id="trial-state-label" className="visually-hidden">{addressConfig.stateLabel}</span>
+                <div className="trial-input-wrap">
+                  <i className="bi bi-map trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    id="trial-state"
+                    className="form-control trial-input"
+                    name="state"
+                    aria-label={addressConfig.stateLabel}
+                    aria-labelledby="trial-state-label"
+                    placeholder={addressConfig.statePlaceholder}
+                    value={customer.state}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="col-md-6">
+                <span id="trial-city-label" className="visually-hidden">{addressConfig.cityLabel}</span>
+                <div className="trial-input-wrap">
+                  <i className="bi bi-building trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    id="trial-city"
+                    className="form-control trial-input"
+                    name="city"
+                    aria-label={addressConfig.cityLabel}
+                    aria-labelledby="trial-city-label"
+                    placeholder={addressConfig.cityPlaceholder}
+                    value={customer.city}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="col-md-6">
+                <span id="trial-postal-label" className="visually-hidden">{addressConfig.postalLabel}</span>
+                <div className="trial-input-wrap">
+                  <i className="bi bi-pin-map trial-input-icon" aria-hidden="true"></i>
+                  <input
+                    id="trial-postal-code"
+                    className="form-control trial-input"
+                    name="postalCode"
+                    aria-label={addressConfig.postalLabel}
+                    aria-labelledby="trial-postal-label"
+                    placeholder={addressConfig.postalPlaceholder}
+                    value={customer.postalCode}
+                    onChange={handleCustomerFieldChange}
+                    required
+                  />
+                </div>
+              </div>
+
+                 <div className="col-12">
                 <label htmlFor="choose-slot-button" id="trial-slot-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
                   Select your slot
                 </label>
@@ -901,62 +1169,6 @@ export default function TrialDetailsPage() {
                     </span>
                     <i className="bi bi-chevron-down" style={{ fontSize: 13, color: "#9ca3af", flexShrink: 0 }}></i>
                   </button>
-                </div>
-              </div>
-
-              <div className="col-md-6">
-                <label htmlFor="trial-state" id="trial-state-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  {addressConfig.stateLabel}
-                </label>
-                <div className="trial-input-wrap">
-                  <i className="bi bi-map trial-input-icon" aria-hidden="true"></i>
-                  <input
-                    id="trial-state"
-                    className="form-control trial-input"
-                    name="state"
-                    aria-labelledby="trial-state-label"
-                    placeholder={addressConfig.statePlaceholder}
-                    value={customer.state}
-                    onChange={handleCustomerFieldChange}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="col-md-6">
-                <label htmlFor="trial-city" id="trial-city-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  {addressConfig.cityLabel}
-                </label>
-                <div className="trial-input-wrap">
-                  <i className="bi bi-building trial-input-icon" aria-hidden="true"></i>
-                  <input
-                    id="trial-city"
-                    className="form-control trial-input"
-                    name="city"
-                    aria-labelledby="trial-city-label"
-                    placeholder={addressConfig.cityPlaceholder}
-                    value={customer.city}
-                    onChange={handleCustomerFieldChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="col-12">
-                <label htmlFor="trial-postal-code" id="trial-postal-label" className="form-label mb-1" style={{ fontSize: 13, fontWeight: 600, color: "#374151", display: "block" }}>
-                  {addressConfig.postalLabel}
-                </label>
-                <div className="trial-input-wrap">
-                  <i className="bi bi-pin-map trial-input-icon" aria-hidden="true"></i>
-                  <input
-                    id="trial-postal-code"
-                    className="form-control trial-input"
-                    name="postalCode"
-                    aria-labelledby="trial-postal-label"
-                    placeholder={addressConfig.postalPlaceholder}
-                    value={customer.postalCode}
-                    onChange={handleCustomerFieldChange}
-                    required
-                  />
                 </div>
               </div>
 

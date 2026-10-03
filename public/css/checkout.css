@@ -224,238 +224,753 @@ background-color :#AAAEAA;
   border-radius: 2px;
 }
 
-.thankyou-hero,
-.thankyou-card,
-.thankyou-cta {
+/*=========================================
+    THANK YOU PAGE – V2 REFERENCE DESIGN
+=========================================*/
+.checkout-page:has(.thankyou-wrapper),
+body.thankyou-page-active,
+body.thankyou-page-active .checkout-page {
+  background-color: #faf5ee;
+  background-image: url("/images/form-background-img.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.checkout-page:has(.thankyou-wrapper) .checkout-page-main,
+body.thankyou-page-active .checkout-page-main {
+  background: transparent;
+  padding: 30px 0 60px;
+}
+
+.thankyou-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px 40px;
+  width: 100%;
+}
+
+.thankyou-main-card {
+  width: 100%;
+  max-width: 530px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.thankyou-header-banner {
+  height: 125px;
+  background: linear-gradient(135deg, #0fe033 0%, #a2f5af 100%);
   position: relative;
-  z-index: 1;
 }
 
-.thankyou-success-icon-wrap {
+.thankyou-check-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: -46px;
   position: relative;
-  width: 76px;
-  height: 76px;
-  margin: 0 auto 20px;
+  z-index: 2;
 }
 
-.thankyou-burst {
-  position: absolute;
-  inset: -22px;
-}
-
-.thankyou-burst-ray {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 2px;
-  height: 12px;
-  margin: -6px 0 0 -1px;
-  border-radius: 2px;
-  background: #ffb648;
-  /* The full transform (rotate, THEN translate outward along the now-rotated local axis —
-     the standard technique for elements radiating from one center point) is set inline per
-     ray in JSX, since inline style fully replaces this class's `transform`, not merges with
-     it; this base rule only supplies the ray's shape/color. */
-}
-
-.thankyou-success-icon {
-  width: 76px;
-  height: 76px;
+.thankyou-check-outer {
+  width: 92px;
+  height: 92px;
   border-radius: 50%;
-  background: #e5f5e0;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #3a9d3a;
-  font-size: 34px;
-  position: relative;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
-.thankyou-hero h1 {
-  font-size: 30px;
-  font-weight: 700;
-  margin: 0 0 8px;
-  color: #1c1a17;
-}
-
-.thankyou-subtitle {
-  font-size: 16px;
-  color: #55504a;
-  margin: 0 0 4px;
-}
-
-.thankyou-tagline {
-  font-size: 14px;
-  color: #8a8380;
-  margin: 0 0 28px;
-}
-
-.thankyou-card {
-  text-align: left;
-  /* No boxed/card treatment by design — this section reads as part of the same continuous
-     page background (.thankyou-page) rather than a separate white card. Content, spacing,
-     and typography below are otherwise unchanged. */
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 24px;
-  box-shadow: none;
-  margin-bottom: 24px;
-}
-
-.thankyou-card-head {
+.thankyou-check-inner {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: #18d234;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 16px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid #f3ede4;
+  align-items: center;
+  justify-content: center;
 }
 
-.thankyou-card-title {
-  font-size: 19px;
+.thankyou-card-body {
+  padding: 16px 36px 34px;
+  text-align: center;
+}
+
+.thankyou-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #111827;
+  margin: 16px 0 8px;
+}
+
+.thankyou-status-subtitle {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 6px;
+}
+
+.thankyou-status-highlight {
+  color: #16a34a;
   font-weight: 700;
-  margin: 0 0 3px;
-  color: #1c1a17;
 }
 
-.thankyou-card-subtitle {
-  font-size: 13px;
-  color: #8a8380;
-  margin: 0;
+.thankyou-welcome-msg {
+  font-size: 13.5px;
+  color: #4b5563;
+  margin: 0 0 24px;
+  font-weight: 500;
 }
 
-.thankyou-row {
+.thankyou-details-box {
+  background: #ffffff;
+  border: 1.5px solid #a3eeb2;
+  border-radius: 16px;
+  padding: 6px 20px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.thankyou-detail-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 13px 0;
-  border-bottom: 1px solid #f3ede4;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #edf7ee;
 }
 
-.thankyou-row:last-child {
+.thankyou-detail-row:last-child {
   border-bottom: none;
 }
 
-.thankyou-row-label {
-  font-size: 14px;
-  color: #6b6560;
-}
-
-.thankyou-row-value {
-  font-size: 14px;
-  color: #1c1a17;
-  font-weight: 600;
-  text-align: right;
-}
-
-.thankyou-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: 0 0 auto;
-  background: #e5f5e0;
-  color: #2f7d2f;
-  font-weight: 700;
-  font-size: 11.5px;
-  letter-spacing: 0.03em;
-  padding: 6px 14px;
-  border-radius: 999px;
+.thankyou-detail-label {
+  font-size: 13.5px;
+  color: #374151;
+  font-weight: 500;
   white-space: nowrap;
 }
 
-.thankyou-status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #3a9d3a;
+.thankyou-detail-value {
+  font-size: 13.5px;
+  color: #111827;
+  font-weight: 700;
+  text-align: right;
+  word-break: break-word;
 }
 
-.thankyou-billing-note {
+.thankyou-btn-group {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 12px;
-  background: #eef8ec;
-  border-radius: 12px;
-  padding: 16px;
-  margin-top: 18px;
+  width: 100%;
 }
 
-.thankyou-billing-note p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #4a6b41;
-}
-
-.thankyou-billing-icon {
-  flex: 0 0 auto;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #d8ecd2;
-  color: #3a9d3a;
+.thankyou-btn-home {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-}
-
-.thankyou-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #ff6b1b;
-  color: #fff;
-  font-weight: 600;
-  font-size: 15px;
-  padding: 14px 32px;
-  border-radius: 999px;
+  width: 100%;
+  background: #000000;
+  color: #ffffff !important;
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 13px 24px;
+  border-radius: 10px;
   text-decoration: none;
   border: none;
-  margin-bottom: 40px;
-  transition: background 0.2s ease, transform 0.15s ease;
+  transition: opacity 0.2s ease, transform 0.15s ease;
+  cursor: pointer;
 }
 
-.thankyou-cta:hover {
-  background: #e85f14;
-  color: #fff;
+.thankyou-btn-home:hover {
+  opacity: 0.88;
+  color: #ffffff !important;
+  transform: translateY(-1px);
 }
 
-/* Real WhatsApp brand green (#25D366), not the Jovens orange — this is a WhatsApp deep-link
-   button, not another primary-brand CTA. */
-.thankyou-cta-whatsapp {
-  background: #25d366;
-  font-size: 16px;
+.thankyou-btn-whatsapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  background: #00c73d;
+  color: #ffffff !important;
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 13px 24px;
+  border-radius: 10px;
+  text-decoration: none;
+  border: none;
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
-.thankyou-cta-whatsapp i {
-  font-size: 20px;
+.thankyou-btn-whatsapp:hover {
+  background: #00b336;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 199, 61, 0.25);
 }
 
-.thankyou-cta-whatsapp:hover {
-  background: #20bd5c;
-  color: #fff;
+.thankyou-btn-whatsapp:active {
+  transform: translateY(0);
+}
+
+.thankyou-wa-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.thankyou-notice-card {
+  width: 100%;
+  max-width: 530px;
+  margin: 20px auto 0;
+  border: 1.5px solid #a3eeb2;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.03);
+}
+
+.thankyou-notice-header {
+  background: linear-gradient(90deg, #18cf32 0%, #7ce88b 100%);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.thankyou-notice-body {
+  background: #f4fdf5;
+  padding: 16px 20px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #1f2937;
+  text-align: left;
+}
+
+@media (max-width: 768px) {
+  .checkout-page:has(.thankyou-wrapper),
+  body.thankyou-page-active,
+  body.thankyou-page-active .checkout-page {
+    background-attachment: scroll;
+  }
 }
 
 @media (max-width: 575px) {
-  .thankyou-card {
-    padding: 18px;
+  .thankyou-wrapper {
+    padding: 10px 12px 30px;
   }
+  .thankyou-card-body {
+    padding: 14px 18px 24px;
+  }
+  .thankyou-title {
+    font-size: 22px;
+  }
+  .thankyou-status-subtitle {
+    font-size: 13.5px;
+  }
+  .thankyou-welcome-msg {
+    font-size: 12.5px;
+    margin-bottom: 18px;
+  }
+  .thankyou-details-box {
+    padding: 4px 14px;
+  }
+  .thankyou-detail-row {
+    padding: 10px 0;
+    gap: 8px;
+  }
+  .thankyou-detail-label,
+  .thankyou-detail-value {
+    font-size: 12.5px;
+  }
+  .thankyou-btn-home,
+  .thankyou-btn-whatsapp {
+    font-size: 13.5px;
+    padding: 12px 18px;
+  }
+  .thankyou-notice-header {
+    font-size: 13.5px;
+    padding: 9px 14px;
+  }
+  .thankyou-notice-body {
+    padding: 14px 14px;
+    font-size: 12px;
+  }
+}
 
-  .thankyou-card-head {
+/*==================================================
+    TRIAL ALREADY ACTIVE / EXPIRED - 2-COLUMN DESIGN
+==================================================*/
+.checkout-page:has(.trial-status-page-wrapper) {
+  background-color: #faf5ee;
+  background-image: url("/images/form-background-img.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+.checkout-page:has(.trial-status-page-wrapper) .checkout-page-main {
+  background: transparent;
+  padding: 40px 0 60px;
+}
+
+.trial-status-page-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 16px 40px;
+  width: 100%;
+}
+
+.trial-status-card {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 900px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+/* Left Panel - Orange Yoga Panel */
+.trial-status-left-panel {
+  position: relative;
+  flex: 0 0 44%;
+  max-width: 44%;
+ background: linear-gradient(180deg, #FF904D 0%, #FE711B 100%);
+
+  color: #ffffff;
+  padding: 32px 30px 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 540px;
+}
+
+.trial-status-badges {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  z-index: 3;
+}
+
+.trial-badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  backdrop-filter: blur(4px);
+}
+
+.trial-badge-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: inline-block;
+}
+
+.trial-badge-plan {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.trial-status-left-content {
+  position: relative;
+  z-index: 3;
+  margin-top: 50px;
+}
+
+.trial-status-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 10px;
+  line-height: 1.25;
+}
+
+.trial-status-greeting {
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.92);
+  margin: 0;
+}
+
+.trial-status-greeting strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.trial-status-visual-wrap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 340px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.trial-status-lotus-watermark {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 320px;
+  opacity: 0.85;
+  z-index: 1;
+}
+
+.trial-status-yoga-img {
+  position: relative;
+  z-index: 2;
+
+      left: 20px;
+    width: 458px;
+  object-fit: contain;
+  object-position: bottom center;
+  display: block;
+}
+
+/* Right Panel - White Details Panel */
+.trial-status-right-panel {
+  flex: 0 0 56%;
+  max-width: 56%;
+  background: #ffffff;
+  padding: 32px 36px 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Usage Section */
+.trial-usage-section {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.trial-usage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 8px;
+}
+
+.trial-usage-pct {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.trial-usage-bar-track {
+  width: 100%;
+  height: 8px;
+  background: #fedec2;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.trial-usage-bar-fill {
+  height: 100%;
+  background: #ff6224;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.trial-usage-dates {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+/* Details Table */
+.trial-status-details-table {
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 14px;
+  padding: 4px 18px;
+  margin-bottom: 20px;
+}
+
+.trial-status-details-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 12px;
+}
+
+.trial-status-details-row:last-child {
+  border-bottom: none;
+}
+
+.trial-status-details-label {
+  font-size: 13px;
+  color: #4b5563;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.trial-status-details-value {
+  font-size: 13px;
+  color: #111827;
+  font-weight: 700;
+  text-align: right;
+  word-break: break-word;
+}
+
+.trial-status-highlight-active {
+  color: #ff6224;
+  font-weight: 700;
+}
+
+.trial-status-highlight-expired {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Notice Box */
+.trial-status-notice-box {
+  background: #fff8f0;
+  border: 1px solid #fee8d6;
+  border-radius: 12px;
+  padding: 13px 44px 13px 16px;
+  margin-bottom: 22px;
+  position: relative;
+  overflow: hidden;
+}
+
+.trial-status-notice-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #374151;
+  margin: 0;
+}
+
+.trial-status-notice-text strong {
+  color: #ff6224;
+}
+
+.trial-status-notice-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 38px;
+  color: #ff6224;
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+/* Action Buttons */
+.trial-status-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.trial-status-btn-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: #ff6224;
+  color: #ffffff !important;
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 13px 20px;
+  border-radius: 10px;
+  text-decoration: none;
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 98, 36, 0.28);
+  transition: background 0.2s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.trial-status-btn-view:hover {
+  background: #e55318;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.trial-status-btn-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: #ffffff;
+  color: #1f2937 !important;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: 1.5px solid #ff6224;
+  transition: background 0.2s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.trial-status-btn-cancel:hover {
+  background: #fff5ee;
+  transform: translateY(-1px);
+}
+
+.trial-status-btn-pay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: #ff6224;
+  color: #ffffff !important;
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 13px 20px;
+  border-radius: 10px;
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 98, 36, 0.28);
+  transition: background 0.2s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.trial-status-btn-pay:hover {
+  background: #e55318;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.trial-status-back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-top: 14px;
+  padding: 4px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.trial-status-back-link:hover {
+  color: #111827;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 900px) {
+  .trial-status-card {
+    max-width: 680px;
+  }
+  .trial-status-left-panel {
+    flex: 0 0 42%;
+    max-width: 42%;
+    padding: 24px 20px 0;
+  }
+  .trial-status-right-panel {
+    flex: 0 0 58%;
+    max-width: 58%;
+    padding: 24px 24px 20px;
+  }
+  .trial-status-title {
+    font-size: 22px;
+  }
+  .trial-status-visual-wrap {
+    height: 280px;
+  }
+  .trial-status-lotus-watermark {
+    width: 250px;
+    height: 250px;
+  }
+  .trial-status-yoga-img {
+    max-height: 260px;
+  }
+}
+
+@media (max-width: 767px) {
+  .checkout-page:has(.trial-status-page-wrapper) {
+    background-attachment: scroll;
+  }
+  .trial-status-page-wrapper {
+    padding: 16px 12px 40px;
+  }
+  .trial-status-card {
     flex-direction: column;
+    max-width: 480px;
   }
-
-  .thankyou-row {
-    flex-wrap: wrap;
+  .trial-status-left-panel {
+    flex: 0 0 100%;
+    max-width: 100%;
+    min-height: 380px;
+    padding: 24px 20px 0;
   }
-
-  .thankyou-row-value {
-    text-align: left;
-    width: 100%;
+  .trial-status-title {
+    font-size: 22px;
+  }
+  .trial-status-visual-wrap {
+    height: 240px;
+  }
+  .trial-status-lotus-watermark {
+    width: 220px;
+    height: 220px;
+  }
+  .trial-status-yoga-img {
+    max-height: 220px;
+  }
+  .trial-status-right-panel {
+    flex: 0 0 100%;
+    max-width: 100%;
+    padding: 24px 20px 24px;
   }
 }
 
