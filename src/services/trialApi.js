@@ -7,7 +7,7 @@ export function checkTrialEligibility(email, mobileNumber) {
   });
 }
 
-export function createTrial(planId, planDurationId, slotId, customer, otpToken, batchId = null, slotDate = null) {
+export function createTrial(planId, planDurationId, slotId, customer, otpToken, batchId = null, slotDate = null, referralCode = null) {
   const body = {
     planId,
     planDurationId,
@@ -17,6 +17,7 @@ export function createTrial(planId, planDurationId, slotId, customer, otpToken, 
   };
   if (batchId) body.batchId = batchId;
   if (slotDate) body.slotDate = slotDate;
+  if (referralCode) body.referralCode = referralCode;
 
   return apiRequest("/api/trials", {
     method: "POST",

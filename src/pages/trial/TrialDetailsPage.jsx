@@ -14,6 +14,7 @@ import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 import SlotPickerModal from "../../components/SlotPickerModal.jsx";
 import { formatSlotSummary, formatDateWithWeekday, formatSlotTimeRange } from "../../lib/slotUtils.js";
 import { resolveLocationTimezone } from "../../services/locationApi.js";
+import { getStoredReferralCode, setStoredReferralCode, clearStoredReferralCode } from "../../services/referralStorage.js";
 
 // Trial registration only supports these 5 countries/phone codes — a deliberately shorter
 // list than the shared COUNTRIES set (used elsewhere, e.g. the paid checkout flow) so that
@@ -121,6 +122,18 @@ export default function TrialDetailsPage() {
   const durationId = Number(searchParams.get("durationId"));
   const tokenParam = searchParams.get("token");
   const navigate = useNavigate();
+
+  // Persist referral code into storage if navigating directly to /trial or /trial/details with ?ref=
+  useEffect(() => {
+    try {
+      const refParam = searchParams.get("ref");
+      if (refParam && refParam.trim()) {
+        setStoredReferralCode(refParam.trim().toUpperCase());
+      }
+    } catch {
+      // Ignore
+    }
+  }, [searchParams]);
 
   const [plan, setPlan] = useState(null);
   const [planStatus, setPlanStatus] = useState("loading");
@@ -519,6 +532,7 @@ export default function TrialDetailsPage() {
         return;
       }
 
+      const referralCode = searchParams.get("ref")?.trim() || getStoredReferralCode() || null;
       const trial = await createTrial(
         planId,
         durationId,
@@ -526,8 +540,12 @@ export default function TrialDetailsPage() {
         values,
         verificationToken,
         selectedSlot?.batchId || null,
-        selectedSlot?.slotDate || selectedSlot?.date || null
+        selectedSlot?.slotDate || selectedSlot?.date || null,
+        referralCode
       );
+      // Attribution is recorded on the backend with the trial. Clear local client storage
+      // so any subsequent unrelated trial registration on this device is not accidentally attributed.
+      clearStoredReferralCode();
       if (!trial?.accessToken) {
         setErrorMessage("Could not start checkout. Please try again.");
         setSubmitting(false);

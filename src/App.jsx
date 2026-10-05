@@ -18,6 +18,7 @@ import AdminOrdersPage from "./pages/admin/AdminOrdersPage.jsx";
 import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage.jsx";
 import AdminTrialsPage from "./pages/admin/AdminTrialsPage.jsx";
 import AdminNotificationsPage from "./pages/admin/AdminNotificationsPage.jsx";
+import AdminReferralsPage from "./pages/admin/AdminReferralsPage.jsx";
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<ProtectedAdminRoute><AdminDashboardPage /></ProtectedAdminRoute>} />
         <Route path="/admin/users" element={<ProtectedAdminRoute><AdminUsersPage /></ProtectedAdminRoute>} />
+        <Route path="/admin/referrals" element={<ProtectedAdminRoute><AdminReferralsPage /></ProtectedAdminRoute>} />
         <Route path="/admin/plans" element={<ProtectedAdminRoute><AdminPlansPage /></ProtectedAdminRoute>} />
         <Route path="/admin/slots" element={<ProtectedAdminRoute><AdminSlotsPage /></ProtectedAdminRoute>} />
         <Route path="/admin/orders" element={<ProtectedAdminRoute><AdminOrdersPage /></ProtectedAdminRoute>} />

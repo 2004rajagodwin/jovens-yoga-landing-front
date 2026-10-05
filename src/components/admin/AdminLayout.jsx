@@ -13,6 +13,7 @@ const NAV_GROUPS = [
     title: "Management",
     items: [
       { to: "/admin/users", label: "Users", icon: "bi-people-fill" },
+      { to: "/admin/referrals", label: "Refer a Friend", icon: "bi-gift-fill" },
       { to: "/admin/trials", label: "Trials", icon: "bi-hourglass-split" },
       { to: "/admin/plans", label: "Plans", icon: "bi-box-seam-fill" },
       { to: "/admin/slots", label: "Slots", icon: "bi-calendar-week" },

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import AOS from "aos";
 import Swiper from "swiper";
 import { Navigation } from "swiper/modules";
 import $ from "../lib/owlCarousel.js";
 import PricingSection from "../components/PricingSection.jsx";
+import { validateReferralCode } from "../services/referralApi.js";
+import { setStoredReferralCode, clearStoredReferralCode } from "../services/referralStorage.js";
 
 const heroSlides = [
   { video: "/images/yoga.girl.mp4" },
@@ -110,6 +113,7 @@ const faqs = [
 ];
 
 export default function Home() {
+  const location = useLocation();
   const heroSliderRef = useRef(null);
   const testimonialRef = useRef(null);
 
@@ -136,6 +140,34 @@ export default function Home() {
   useEffect(() => {
     AOS.init({ duration: 1000, easing: "ease-in-out", once: true, offset: 50 });
   }, []);
+
+  // Referral Link Attribution: Read ?ref=... from URL, validate and store safely.
+  // We store immediately synchronously so instant navigation to checkout preserves attribution,
+  // then asynchronously validate against the server to confirm validity and retrieve the referrer's name.
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(location.search || window.location.search);
+      const refParam = searchParams.get("ref");
+      if (refParam && refParam.trim()) {
+        const cleanRef = refParam.trim().toUpperCase();
+        setStoredReferralCode(cleanRef);
+        validateReferralCode(cleanRef)
+          .then((res) => {
+            if (res && res.valid) {
+              setStoredReferralCode(cleanRef, res.referralPersonName);
+            } else {
+              // If backend reports invalid or disabled code, remove it so it's not falsely used
+              clearStoredReferralCode();
+            }
+          })
+          .catch(() => {
+            // Keep synchronous storage as fallback for slow/offline networks
+          });
+      }
+    } catch {
+      // Ignore
+    }
+  }, [location.search]);
 
   // Hero banner slider (Owl Carousel) — fade transition, dots, autoplay,
   // only the active slide's video plays and resets on slide change.

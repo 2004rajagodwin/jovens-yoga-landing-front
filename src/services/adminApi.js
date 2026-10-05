@@ -150,3 +150,23 @@ export function listNotifications({ status, channel, page = 0, size = 20 } = {})
 export function retryNotification(id) {
   return authedRequest(`/api/admin/notifications/${id}/retry`, { method: "POST" });
 }
+
+// --- Referrals ---
+export function listReferralsAdmin({ search, status, page = 0, size = 20 } = {}) {
+  return authedRequest(`/api/admin/referrals${toQuery({ search, status, page, size })}`);
+}
+export function getReferralAdmin(id) {
+  return authedRequest(`/api/admin/referrals/${id}`);
+}
+export function createReferralAdmin(payload) {
+  return authedRequest("/api/admin/referrals", { method: "POST", body: payload });
+}
+export function updateReferralStatusAdmin(id, status) {
+  return authedRequest(`/api/admin/referrals/${id}/status`, { method: "PATCH", body: { status } });
+}
+export function getReferralStatsAdmin() {
+  return authedRequest("/api/admin/referrals/stats");
+}
+export function getReferralUsersAdmin(id, { page = 0, size = 20 } = {}) {
+  return authedRequest(`/api/admin/referrals/${id}/users${toQuery({ page, size })}`);
+}
