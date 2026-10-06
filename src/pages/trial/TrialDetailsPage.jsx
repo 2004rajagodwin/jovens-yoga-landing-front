@@ -11,6 +11,7 @@ import { updateCheckoutState } from "../../services/checkoutState.js";
 import { SUPPORTED_COUNTRIES, detectSupportedCountryName, getCountryAddressConfig } from "../../lib/countryDetection.js";
 import { getPricing } from "../../services/pricingApi.js";
 import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
+import AutoPaySuccessCard from "../../components/checkout/AutoPaySuccessCard.jsx";
 import SlotPickerModal from "../../components/SlotPickerModal.jsx";
 import { formatSlotSummary, formatDateWithWeekday, formatSlotTimeRange } from "../../lib/slotUtils.js";
 import { resolveLocationTimezone } from "../../services/locationApi.js";
@@ -606,33 +607,10 @@ export default function TrialDetailsPage() {
   if (isPaidActive) {
     return (
       <CheckoutLayout>
-        <div className="container py-5 text-center" style={{ maxWidth: 540, margin: "0 auto" }}>
-          <h1 className="mb-3" style={{ fontSize: 28 }}>
-            🎉 Congratulations, {blockedTrial?.firstName || blockedCustomer?.firstName || "Member"}!
-          </h1>
-          <p className="text-muted mb-4">Your {blockedTrial?.planName || "Membership"} Plan is now active.</p>
-
-          <div className="text-start mb-4" style={{ border: "1px solid #eee", borderRadius: 10, padding: 24, background: "#fff" }}>
-            <p><strong>Plan:</strong> {blockedTrial?.planName || "Standard"}</p>
-            {blockedTrial?.trialExpiryDate && (
-              <p><strong>Trial Expired:</strong> {new Date(blockedTrial.trialExpiryDate).toLocaleString()}</p>
-            )}
-            {blockedTrial?.paymentDate && (
-              <p><strong>Payment Date:</strong> {new Date(blockedTrial.paymentDate).toLocaleString()}</p>
-            )}
-            {blockedTrial?.paymentAmount != null && (
-              <p><strong>Amount Paid:</strong> {blockedTrial.paymentCurrency} {blockedTrial.paymentAmount}</p>
-            )}
-            {blockedTrial?.stripeSubscriptionId && (
-              <p><strong>Subscription Reference:</strong> {blockedTrial.stripeSubscriptionId}</p>
-            )}
-            <p className="mb-0"><strong>Status:</strong> MEMBERSHIP ACTIVE / PAID</p>
-          </div>
-
-          <Link to="/" className="btn btn-primary px-4 py-2">
-            Back to Home
-          </Link>
-        </div>
+        <AutoPaySuccessCard
+          trial={blockedTrial}
+          fallbackName={blockedCustomer?.firstName || customer?.firstName || "Member"}
+        />
       </CheckoutLayout>
     );
   }

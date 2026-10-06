@@ -4,6 +4,7 @@ import { getTrialByToken } from "../services/trialApi.js";
 import { getOrder } from "../services/orderApi.js";
 import CheckoutLayout from "../components/checkout/CheckoutLayout.jsx";
 import ThankYouConfetti from "../components/ThankYouConfetti.jsx";
+import AutoPaySuccessCard from "../components/checkout/AutoPaySuccessCard.jsx";
 
 // WhatsApp Community Invite URL — update this constant when changing the community link.
 const WHATSAPP_COMMUNITY_URL =
@@ -196,33 +197,7 @@ export default function ThankYouPage() {
   if (trial && trial.paymentAmount != null) {
     return (
       <CheckoutLayout>
-        <div className="container py-5 text-center" style={{ maxWidth: 520, margin: "0 auto" }}>
-          <h1 className="mb-3" style={{ fontSize: 28 }}>
-            🎉 Congratulations, {trial.firstName}!
-          </h1>
-          <p className="text-muted mb-4">Your {trial.planName} Plan is now active.</p>
-
-          <div className="text-start" style={{ border: "1px solid #eee", borderRadius: 10, padding: 24 }}>
-            <p>
-              <strong>Plan:</strong> {trial.planName}
-            </p>
-            <p>
-              <strong>Trial Expired:</strong> {new Date(trial.trialExpiryDate).toLocaleString()}
-            </p>
-            <p>
-              <strong>Payment Date:</strong> {new Date(trial.paymentDate).toLocaleString()}
-            </p>
-            <p>
-              <strong>Amount:</strong> {trial.paymentCurrency} {trial.paymentAmount}
-            </p>
-            <p>
-              <strong>Subscription Reference:</strong> {trial.stripeSubscriptionId}
-            </p>
-            <p className="mb-0">
-              <strong>Status:</strong> PAID / ACTIVE
-            </p>
-          </div>
-        </div>
+        <AutoPaySuccessCard trial={trial} />
       </CheckoutLayout>
     );
   }
