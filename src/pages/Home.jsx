@@ -5,6 +5,8 @@ import Swiper from "swiper";
 import { Navigation } from "swiper/modules";
 import $ from "../lib/owlCarousel.js";
 import PricingSection from "../components/PricingSection.jsx";
+import { fetchActivePlans, getPricing } from "../services/pricingApi.js";
+import { detectSupportedCountryName, SUPPORTED_COUNTRIES } from "../lib/countryDetection.js";
 import { validateReferralCode } from "../services/referralApi.js";
 import { setStoredReferralCode, clearStoredReferralCode } from "../services/referralStorage.js";
 
@@ -122,6 +124,7 @@ export default function Home() {
 
   const [openFaq, setOpenFaq] = useState(null);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
+  const [pricingAmount, setPricingAmount] = useState(null);
 
   const jtsSwipers = useRef({});
   const jtsPanelEls = useRef({});
@@ -139,6 +142,42 @@ export default function Home() {
   // AOS: initialize exactly once for the whole page
   useEffect(() => {
     AOS.init({ duration: 1000, easing: "ease-in-out", once: true, offset: 50 });
+  }, []);
+
+  // Country-based dynamic pricing for "After 5 Days, Continue For Just [AMOUNT]/Month." card
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCountryPricing() {
+      try {
+        const [activePlansResult, countryName] = await Promise.all([
+          fetchActivePlans().catch(() => null),
+          detectSupportedCountryName(),
+        ]);
+        if (cancelled) return;
+
+        const standardPlan = activePlansResult?.find((p) => !p.featured) || activePlansResult?.[0];
+        const durationId = standardPlan?.durationId || 2;
+        const isoCode = SUPPORTED_COUNTRIES[countryName]?.isoCode || "IN";
+
+        const pricing = await getPricing(durationId, isoCode);
+        if (cancelled) return;
+
+        const resolvedDisplay =
+          pricing?.formattedAmount ||
+          (pricing?.symbol && pricing?.amount != null ? `${pricing.symbol}${pricing.amount}` : "₹999");
+        setPricingAmount(resolvedDisplay);
+      } catch {
+        if (!cancelled) {
+          setPricingAmount("₹999");
+        }
+      }
+    }
+
+    loadCountryPricing();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Referral Link Attribution: Read ?ref=... from URL, validate and store safely.
@@ -732,7 +771,7 @@ const floatStyle = `
 
             <div className="col-lg-4 col-md-6">
               <div data-aos="flip-left" className="how-it-jovens-section-main how-it-center-box">
-                <h3>After 5 Days, Continue<br />For Just <span>₹29/Month.</span></h3>
+                <h3>After 5 Days, Continue<br />For Just <span>{pricingAmount || "..."}/Month.</span></h3>
                 <p>Affordable expert guidance, personalized support, and live sessions designed to help you stay consistent.</p>
               </div>
             </div>
