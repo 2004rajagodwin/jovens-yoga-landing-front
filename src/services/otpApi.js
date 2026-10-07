@@ -14,9 +14,9 @@ export function resendOtp({ countryPhoneCode, mobileNumber }) {
   });
 }
 
-export function verifyOtp({ countryPhoneCode, mobileNumber, code }) {
+export function verifyOtp({ countryPhoneCode, mobileNumber, code, email }) {
   return apiRequest("/api/auth/otp/verify", {
     method: "POST",
-    body: { countryPhoneCode, mobileNumber, code },
+    body: { countryPhoneCode, mobileNumber, code, email },
   });
 }

@@ -101,7 +101,7 @@ export default function OtpVerificationModal({ firstName, email, countryPhoneCod
     setSubmitting(true);
     setErrorMessage("");
     try {
-      const result = await verifyOtp({ countryPhoneCode, mobileNumber, code });
+      const result = await verifyOtp({ countryPhoneCode, mobileNumber, code, email });
       onVerified(result.verificationToken);
     } catch (err) {
       setDigits(Array(CODE_LENGTH).fill(""));
