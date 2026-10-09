@@ -13,7 +13,7 @@ import { getPricing } from "../../services/pricingApi.js";
 import CheckoutLayout from "../../components/checkout/CheckoutLayout.jsx";
 import AutoPaySuccessCard from "../../components/checkout/AutoPaySuccessCard.jsx";
 import SlotPickerModal from "../../components/SlotPickerModal.jsx";
-import { formatSlotSummary, formatDateWithWeekday, formatSlotTimeRange } from "../../lib/slotUtils.js";
+import { formatSlotSummary, formatDateWithWeekday, formatSlotTimeRange, formatDateDisplay, calculateTrialEndDate } from "../../lib/slotUtils.js";
 import { resolveLocationTimezone } from "../../services/locationApi.js";
 import { getStoredReferralCode, setStoredReferralCode, clearStoredReferralCode } from "../../services/referralStorage.js";
 
@@ -477,8 +477,8 @@ export default function TrialDetailsPage() {
   function handleSubmit(e) {
     e.preventDefault();
     const currentAddressConfig = getCountryAddressConfig(customer.countryRegion);
-    if (!selectedSlot && !selectedSlotId) {
-      setErrorMessage("Please select a batch and class date.");
+    if (!selectedSlot) {
+      setErrorMessage("Please select your slot.");
       return;
     }
     if (!customer.state?.trim()) {
@@ -939,7 +939,11 @@ export default function TrialDetailsPage() {
   }
 
   const selectedDuration = plan?.durations?.find((d) => d.id === durationId) || null;
-  const selectedSlot = chosenSlot || slots.find((s) => s.id === selectedSlotId) || null;
+  const selectedSlot =
+    chosenSlot ||
+    (selectedSlotId != null
+      ? slots.find((s) => s.id != null && s.id === selectedSlotId) || null
+      : null);
   // Prefer the backend-resolved (country-converted) price; fall back to the duration's own
   // native price only while that request hasn't resolved yet, or if it failed — never a
   // frontend-computed conversion.
@@ -1161,7 +1165,7 @@ export default function TrialDetailsPage() {
                         ? "No slots available"
                         : selectedSlot
                         ? `${formatSlotSummary(selectedSlot)}${resolvedTimezone?.displayOffset ? ` (${resolvedTimezone.displayOffset})` : (selectedSlot.displayOffset ? ` (${selectedSlot.displayOffset})` : "")}`
-                        : "Choose a slot"}
+                        : "Select Your Slot"}
                     </span>
                     <i className="bi bi-chevron-down" style={{ fontSize: 13, color: "#9ca3af", flexShrink: 0 }}></i>
                   </button>
@@ -1311,28 +1315,6 @@ export default function TrialDetailsPage() {
             >
               {plan.description}
             </p>
-
-            {selectedSlot && (
-              <div
-                className="mt-2 p-2 rounded"
-                style={{
-                  background: "#fff8f3",
-                  border: "1px solid #ffd8bf",
-                  fontSize: 13,
-                }}
-              >
-                <div style={{ color: "#9a3412", fontWeight: 600 }}>Selected Class:</div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 4 }}>
-                  {selectedSlot.batchName || selectedSlot.label || "Class Batch"}
-                </div>
-                <div>
-                  <strong>Date:</strong> {formatDateWithWeekday(selectedSlot.slotDate)}
-                </div>
-                <div>
-                  <strong>Time:</strong> {formatSlotTimeRange(selectedSlot.startTime || selectedSlot.slotStartTime, selectedSlot.endTime || selectedSlot.slotEndTime)}
-                </div>
-              </div>
-            )}
           </div>
 
           {selectedDuration && (
@@ -1346,6 +1328,84 @@ export default function TrialDetailsPage() {
             </div>
           )}
         </div>
+
+        {selectedSlot && (
+          <div
+            id="trial-selected-dates-card"
+            className="w-100 my-3 p-3 rounded"
+            style={{
+              background: "#fff9f5",
+              border: "1px solid #ffd8bf",
+              borderRadius: 12,
+            }}
+          >
+            <div className="d-flex align-items-center justify-content-between text-start" style={{ gap: 16 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#9a3412",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Trial Start
+                </div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#111827",
+                    marginTop: 3,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {formatDateDisplay(selectedSlot.slotDate || selectedSlot.date)}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  width: 1,
+                  height: 32,
+                  background: "#ffd8bf",
+                  flexShrink: 0,
+                }}
+                aria-hidden="true"
+              />
+
+              <div style={{ flex: 1, minWidth: 0, textAlign: "right" }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#9a3412",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                  }}
+                >
+                  Trial End
+                </div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "#111827",
+                    marginTop: 3,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {formatDateDisplay(calculateTrialEndDate(selectedSlot.slotDate || selectedSlot.date, trialDays))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div
           style={{

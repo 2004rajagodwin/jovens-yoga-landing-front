@@ -20,6 +20,101 @@ import { getActiveBatches, getBookingWindow } from "../services/slotApi.js";
  * 4. Switching batch retains the selected date if inside booking window.
  * 5. Customer clicks "Confirm Slot".
  */
+
+/**
+ * Checks whether a specific date string (YYYY-MM-DD) is available for a given batch.
+ * Considers:
+ * 1. Batch active status.
+ * 2. Date inside [curTodayStr, curMaxDateStr] window.
+ * 3. Specific slot records in slotsList if present (explicit active !== false).
+ */
+function isDateAvailableForBatch(batch, dateStr, slotsList, curTodayStr, curMaxDateStr) {
+  if (!batch || batch.active === false) return false;
+  if (!dateStr || dateStr < curTodayStr || dateStr > curMaxDateStr) return false;
+
+  if (Array.isArray(slotsList) && slotsList.length > 0) {
+    const batchSlots = slotsList.filter(
+      (s) =>
+        (s.batchId != null && s.batchId === batch.id) ||
+        (batch.name && (s.batchName === batch.name || s.label === batch.name))
+    );
+
+    if (batchSlots.length > 0) {
+      const slotForDate = batchSlots.find(
+        (s) => (s.slotDate === dateStr || s.date === dateStr)
+      );
+      if (!slotForDate || slotForDate.active === false) {
+        return false;
+      }
+      return true;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Iterates through all dates from curTodayStr to curMaxDateStr day-by-day
+ * and returns the first available date for the batch, or null if none.
+ */
+function findFirstAvailableDateForBatch(batch, slotsList, curTodayStr, curMaxDateStr) {
+  if (!batch || batch.active === false || !curTodayStr || !curMaxDateStr) return null;
+  const partsToday = parseDateParts(curTodayStr);
+  const partsMax = parseDateParts(curMaxDateStr);
+  if (!partsToday || !partsMax) return null;
+
+  const current = new Date(partsToday.year, partsToday.month - 1, partsToday.day);
+  const end = new Date(partsMax.year, partsMax.month - 1, partsMax.day);
+
+  while (current <= end) {
+    const y = current.getFullYear();
+    const m = String(current.getMonth() + 1).padStart(2, "0");
+    const d = String(current.getDate()).padStart(2, "0");
+    const dateStr = `${y}-${m}-${d}`;
+
+    if (isDateAvailableForBatch(batch, dateStr, slotsList, curTodayStr, curMaxDateStr)) {
+      return dateStr;
+    }
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return null;
+}
+
+/**
+ * Returns batches ordered by preferred initial selection:
+ * Morning Batch -> Afternoon Batch -> Evening Batch -> Any other active batches.
+ */
+function getOrderedBatchesByPreference(batchList) {
+  if (!Array.isArray(batchList)) return [];
+  const activeBatches = batchList.filter((b) => b && b.active !== false);
+
+  const morning = activeBatches.filter((b) => /morning/i.test(b.name || b.label || ""));
+  const afternoon = activeBatches.filter((b) => /afternoon/i.test(b.name || b.label || ""));
+  const evening = activeBatches.filter((b) => /evening/i.test(b.name || b.label || ""));
+
+  const matched = new Set([...morning, ...afternoon, ...evening]);
+  const others = activeBatches.filter((b) => !matched.has(b));
+
+  return [...morning, ...afternoon, ...evening, ...others];
+}
+
+/**
+ * Finds the first available batch and date following preferred order:
+ * Morning -> Afternoon -> Evening -> Others.
+ */
+function findDefaultRecommendedSlot(batchList, slotsList, curTodayStr, curMaxDateStr) {
+  const orderedBatches = getOrderedBatchesByPreference(batchList);
+  for (const batch of orderedBatches) {
+    const firstDate = findFirstAvailableDateForBatch(batch, slotsList, curTodayStr, curMaxDateStr);
+    if (firstDate) {
+      return { batch, date: firstDate };
+    }
+  }
+  return null;
+}
+
 export default function SlotPickerModal({
   isOpen,
   onClose,
@@ -81,8 +176,40 @@ export default function SlotPickerModal({
     return parts ? parts.month - 1 : new Date().getMonth();
   });
 
+
+
   const prevIsOpenRef = useRef(false);
   const batchesRequestIdRef = useRef(0);
+
+  const applyRecommendedSelection = (batch, dateStr) => {
+    const existingSlot = (slots || []).find(
+      (s) =>
+        (s.batchId === batch.id || (s.batchName || s.label) === batch.name) &&
+        (s.slotDate === dateStr || s.date === dateStr)
+    );
+
+    const slotObj = {
+      id: existingSlot?.id || null,
+      batchId: batch.id,
+      batchName: batch.name,
+      slotDate: dateStr,
+      date: dateStr,
+      startTime: batch.startTime,
+      endTime: batch.endTime,
+      label: batch.name,
+      active: true,
+    };
+
+    setSelectedBatchId(batch.id);
+    setTempSelectedDate(dateStr);
+    setTempSelectedSlot(slotObj);
+
+    const parts = parseDateParts(dateStr);
+    if (parts) {
+      setViewYear(parts.year);
+      setViewMonth(parts.month - 1);
+    }
+  };
 
   // Load active batches, booking window, and initialize selection ONCE per modal open
   useEffect(() => {
@@ -100,13 +227,98 @@ export default function SlotPickerModal({
         setBatchesStatus("loading");
       }
 
+      // Check if user already has an existing selection to restore
+      const hasExistingSelection = Boolean(
+        selectedSlot ||
+        (selectedSlotId && (slots || []).some((s) => s.id === selectedSlotId && s.active))
+      );
+
+      if (hasExistingSelection) {
+        if (selectedSlot) {
+          setTempSelectedSlot(selectedSlot);
+          const slotDate = selectedSlot.slotDate || selectedSlot.date;
+          setTempSelectedDate(slotDate);
+          if (selectedSlot.batchId) {
+            setSelectedBatchId(selectedSlot.batchId);
+          }
+          if (slotDate) {
+            const parts = parseDateParts(slotDate);
+            if (parts) {
+              setViewYear(parts.year);
+              setViewMonth(parts.month - 1);
+            }
+          }
+        } else if (selectedSlotId) {
+          const current = (slots || []).find((s) => s.id === selectedSlotId && s.active);
+          if (current) {
+            setTempSelectedSlot(current);
+            const slotDate = current.slotDate || current.date;
+            setTempSelectedDate(slotDate);
+            if (current.batchId) {
+              setSelectedBatchId(current.batchId);
+            }
+            if (slotDate) {
+              const parts = parseDateParts(slotDate);
+              if (parts) {
+                setViewYear(parts.year);
+                setViewMonth(parts.month - 1);
+              }
+            }
+          }
+        }
+      } else {
+        // No existing selection: apply recommended Morning Batch + first available date if batches already loaded
+        if (batches.length > 0) {
+          const recommended = findDefaultRecommendedSlot(batches, slots, todayStr, maxDateStr);
+          if (recommended) {
+            applyRecommendedSelection(recommended.batch, recommended.date);
+          } else {
+            setTempSelectedSlot(null);
+            setTempSelectedDate(null);
+            setSelectedBatchId(null);
+            const parts = parseDateParts(todayStr);
+            if (parts) {
+              setViewYear(parts.year);
+              setViewMonth(parts.month - 1);
+            }
+          }
+        } else {
+          setTempSelectedSlot(null);
+          setTempSelectedDate(null);
+          setSelectedBatchId(null);
+          const parts = parseDateParts(todayStr);
+          if (parts) {
+            setViewYear(parts.year);
+            setViewMonth(parts.month - 1);
+          }
+        }
+      }
+
       getActiveBatches()
         .then((data) => {
           if (batchesRequestIdRef.current !== currentRequestId) return;
           const list = Array.isArray(data) ? data : [];
           setBatches(list);
           setBatchesStatus("success");
-          setSelectedBatchId((prev) => prev || (list.length > 0 ? list[0].id : null));
+
+          if (selectedSlot?.batchId) {
+            setSelectedBatchId(selectedSlot.batchId);
+          } else if (selectedSlotId) {
+            const matched = (slots || []).find((s) => s.id === selectedSlotId);
+            if (matched?.batchId) {
+              setSelectedBatchId(matched.batchId);
+            }
+          } else {
+            // First open without existing slot: automatically select Morning Batch and first available date
+            const recommended = findDefaultRecommendedSlot(list, slots, todayStr, maxDateStr);
+            if (recommended) {
+              applyRecommendedSelection(recommended.batch, recommended.date);
+            } else {
+              setSelectedBatchId(null);
+              setTempSelectedDate(null);
+              setTempSelectedSlot(null);
+            }
+          }
         })
         .catch(() => {
           if (batchesRequestIdRef.current !== currentRequestId) return;
@@ -129,7 +341,25 @@ export default function SlotPickerModal({
           const list = Object.values(map);
           setBatches(list);
           setBatchesStatus("success");
-          setSelectedBatchId((prev) => prev || (list.length > 0 ? list[0].id : null));
+
+          if (selectedSlot?.batchId) {
+            setSelectedBatchId(selectedSlot.batchId);
+          } else if (selectedSlotId) {
+            const matched = (slots || []).find((s) => s.id === selectedSlotId);
+            if (matched?.batchId) {
+              setSelectedBatchId(matched.batchId);
+            }
+          } else {
+            // First open without existing slot: automatically select Morning Batch and first available date
+            const recommended = findDefaultRecommendedSlot(list, slots, todayStr, maxDateStr);
+            if (recommended) {
+              applyRecommendedSelection(recommended.batch, recommended.date);
+            } else {
+              setSelectedBatchId(null);
+              setTempSelectedDate(null);
+              setTempSelectedSlot(null);
+            }
+          }
         });
 
       getBookingWindow()
@@ -139,51 +369,6 @@ export default function SlotPickerModal({
           }
         })
         .catch(() => {});
-
-      // Initialize selection on open
-      if (selectedSlot) {
-        setTempSelectedSlot(selectedSlot);
-        const slotDate = selectedSlot.slotDate || selectedSlot.date;
-        setTempSelectedDate(slotDate);
-        if (selectedSlot.batchId) {
-          setSelectedBatchId(selectedSlot.batchId);
-        }
-        if (slotDate) {
-          const parts = parseDateParts(slotDate);
-          if (parts) {
-            setViewYear(parts.year);
-            setViewMonth(parts.month - 1);
-          }
-        }
-      } else if (selectedSlotId) {
-        const current = (slots || []).find((s) => s.id === selectedSlotId && s.active);
-        if (current) {
-          setTempSelectedSlot(current);
-          const slotDate = current.slotDate || current.date;
-          setTempSelectedDate(slotDate);
-          if (current.batchId) {
-            setSelectedBatchId(current.batchId);
-          }
-          if (slotDate) {
-            const parts = parseDateParts(slotDate);
-            if (parts) {
-              setViewYear(parts.year);
-              setViewMonth(parts.month - 1);
-            }
-          }
-        }
-      } else {
-        setTempSelectedSlot(null);
-        setTempSelectedDate(null);
-        const parts = parseDateParts(todayStr);
-        if (parts) {
-          setViewYear(parts.year);
-          setViewMonth(parts.month - 1);
-        }
-        if (batches.length > 0) {
-          setSelectedBatchId(batches[0].id);
-        }
-      }
     }
   }, [isOpen]);
 
@@ -201,7 +386,7 @@ export default function SlotPickerModal({
 
   // Handle batch selection change (Section 4):
   // When customer changes batch (e.g. Morning -> Evening), calendar remains available.
-  // The selected date remains selected if it is still inside the booking window.
+  // The selected date remains selected if it is still inside the booking window and available for the batch.
   const handleSelectBatch = (batchId) => {
     setSelectedBatchId(batchId);
     const targetBatch = batches.find((b) => b.id === batchId);
@@ -212,7 +397,7 @@ export default function SlotPickerModal({
       return;
     }
 
-    if (tempSelectedDate && tempSelectedDate >= todayStr && tempSelectedDate <= maxDateStr) {
+    if (tempSelectedDate && isDateAvailableForBatch(targetBatch, tempSelectedDate, slots, todayStr, maxDateStr)) {
       const existingSlot = (slots || []).find(
         (s) =>
           (s.batchId === targetBatch.id || (s.batchName || s.label) === targetBatch.name) &&
@@ -230,14 +415,42 @@ export default function SlotPickerModal({
         label: targetBatch.name,
         active: true,
       });
+    } else {
+      const firstDate = findFirstAvailableDateForBatch(targetBatch, slots, todayStr, maxDateStr);
+      if (firstDate) {
+        const existingSlot = (slots || []).find(
+          (s) =>
+            (s.batchId === targetBatch.id || (s.batchName || s.label) === targetBatch.name) &&
+            (s.slotDate === firstDate || s.date === firstDate)
+        );
+        setTempSelectedDate(firstDate);
+        setTempSelectedSlot({
+          id: existingSlot?.id || null,
+          batchId: targetBatch.id,
+          batchName: targetBatch.name,
+          slotDate: firstDate,
+          date: firstDate,
+          startTime: targetBatch.startTime,
+          endTime: targetBatch.endTime,
+          label: targetBatch.name,
+          active: true,
+        });
+        const parts = parseDateParts(firstDate);
+        if (parts) {
+          setViewYear(parts.year);
+          setViewMonth(parts.month - 1);
+        }
+      } else {
+        setTempSelectedDate(null);
+        setTempSelectedSlot(null);
+      }
     }
   };
 
   // Handle date click on calendar (Section 3):
-  // Any date inside [todayStr, maxDateStr] is available for an active batch
   const handleDateSelect = (dateStr) => {
     if (!activeBatch || !activeBatch.active) return;
-    if (dateStr < todayStr || dateStr > maxDateStr) return;
+    if (!isDateAvailableForBatch(activeBatch, dateStr, slots, todayStr, maxDateStr)) return;
 
     const existingSlot = (slots || []).find(
       (s) =>
@@ -742,7 +955,7 @@ export default function SlotPickerModal({
                     const isPast = dateStr < todayStr;
                     const isOutsideWindow = dateStr > maxDateStr;
                     const isBatchActive = Boolean(activeBatch && activeBatch.active);
-                    const isSelectable = !isPast && !isOutsideWindow && isBatchActive;
+                    const isSelectable = isDateAvailableForBatch(activeBatch, dateStr, slots, todayStr, maxDateStr);
                     const isSelected = tempSelectedDate === dateStr;
                     const isToday = dateStr === todayStr;
 
@@ -757,7 +970,9 @@ export default function SlotPickerModal({
                             ? "Past date"
                             : isOutsideWindow
                             ? "Outside booking window"
-                            : isBatchActive
+                            : !isBatchActive
+                            ? "Batch unavailable"
+                            : isSelectable
                             ? `${activeBatch?.name || "Batch"} available`
                             : "Batch unavailable"
                         }

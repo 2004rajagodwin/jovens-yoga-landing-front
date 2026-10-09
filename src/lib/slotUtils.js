@@ -133,3 +133,33 @@ export function groupSlotsByDate(slots) {
 
   return map;
 }
+
+/**
+ * Calculates trial end date (inclusive) from start date and duration days.
+ * E.g., start 2026-10-21 with 7-day trial -> ends 2026-10-27.
+ */
+export function calculateTrialEndDate(startDateVal, durationDays = 7) {
+  if (!startDateVal) return "";
+  let dateStr = "";
+  if (typeof startDateVal === "string") {
+    dateStr = startDateVal.split("T")[0];
+  } else if (startDateVal instanceof Date && !isNaN(startDateVal.getTime())) {
+    const y = startDateVal.getFullYear();
+    const m = String(startDateVal.getMonth() + 1).padStart(2, "0");
+    const d = String(startDateVal.getDate()).padStart(2, "0");
+    dateStr = `${y}-${m}-${d}`;
+  } else {
+    dateStr = String(startDateVal);
+  }
+
+  const parts = parseDateParts(dateStr);
+  if (!parts) return "";
+  const d = new Date(parts.year, parts.month - 1, parts.day);
+  const daysToAdd = Math.max(1, Number(durationDays) || 7) - 1;
+  d.setDate(d.getDate() + daysToAdd);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
